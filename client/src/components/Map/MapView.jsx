@@ -214,6 +214,7 @@ export function MapView({
   selectedPlaceId = null,
   onMarkerClick,
   onMapClick,
+  onSelectPlace,
   center = [48.8566, 2.3522],
   zoom = 10,
   tileUrl = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
@@ -223,6 +224,7 @@ export function MapView({
   rightWidth = 0,
   hasInspector = false,
 }) {
+  const [mapType, setMapType] = useState('standard') // 'standard' | 'satellite'
   // Dynamic padding: account for sidebars + bottom inspector
   const paddingOpts = useMemo(() => {
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
@@ -234,6 +236,46 @@ export function MapView({
     return { paddingTopLeft: [left, top], paddingBottomRight: [right, bottom] }
   }, [leftWidth, rightWidth, hasInspector])
   const [photoUrls, setPhotoUrls] = useState({})
+  const [userLocation, setUserLocation] = useState(null)
+  const [locationError, setLocationError] = useState(null)
+
+  // Get user's current location
+  const getUserLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation not supported')
+      return
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        })
+        setLocationError(null)
+      },
+      (error) => {
+        setLocationError(error.message)
+      }
+    )
+  }
+
+  // Find nearest places to user location
+  function findNearestPlaces(userLoc, places, limit = 5) {
+    if (!userLoc || !places.length) return []
+    
+    return [...places]
+      .filter(p => p.lat && p.lng)
+      .map(place => ({
+        ...place,
+        distance: Math.sqrt(
+          Math.pow(place.lat - userLoc.lat, 2) + 
+          Math.pow(place.lng - userLoc.lng, 2)
+        )
+      }))
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, limit)
+  }
 
   // Fetch Google photos for places that have google_place_id but no image_url
   useEffect(() => {
@@ -255,19 +297,44 @@ export function MapView({
     })
   }, [places])
 
-  return (
-    <MapContainer
-      center={center}
-      zoom={zoom}
-      zoomControl={false}
-      className="w-full h-full"
-      style={{ background: '#e5e7eb' }}
-    >
+  // Define tile layer configurations
+  const tileLayers = {
+    standard: (
       <TileLayer
-        url={tileUrl}
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         maxZoom={19}
       />
+    ),
+    satellite: (
+      <TileLayer
+        attribution='&copy; Esri'
+        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+        maxZoom={19}
+      />
+    )
+  }
+
+  return (
+    <div className="relative w-full h-full">
+      {/* Map Type Toggle Button */}
+      <button 
+        type="button"
+        onClick={() => setMapType(mapType === 'standard' ? 'satellite' : 'standard')}
+        className="absolute top-4 left-4 z-[1000] bg-white p-2 rounded shadow text-sm font-medium hover:bg-gray-50 transition-colors"
+        style={{ boxShadow: '0 2px 10px rgba(0,0,0,0.2)' }}
+      >
+        {mapType === 'standard' ? '🛰️ Satellite' : '🗺️ Standard'}
+      </button>
+      
+      <MapContainer
+        center={center}
+        zoom={zoom}
+        zoomControl={false}
+        className="w-full h-full"
+        style={{ background: '#e5e7eb' }}
+      >
+        {tileLayers[mapType]}
 
       <MapController center={center} zoom={zoom} />
       <BoundsController places={dayPlaces.length > 0 ? dayPlaces : places} fitKey={fitKey} paddingOpts={paddingOpts} />
@@ -351,11 +418,31 @@ export function MapView({
             opacity={0.9}
             dashArray="6, 5"
           />
-          {routeSegments.map((seg, i) => (
-            <RouteLabel key={i} midpoint={seg.mid} from={seg.from} to={seg.to} walkingText={seg.walkingText} drivingText={seg.drivingText} />
+          {routeSegments.map((seg) => (
+            <RouteLabel key={`${seg.from?.lat}-${seg.from?.lng}-${seg.to?.lat}-${seg.to?.lng}`} midpoint={seg.mid} from={seg.from} to={seg.to} walkingText={seg.walkingText} drivingText={seg.drivingText} />
           ))}
         </>
       )}
     </MapContainer>
+
+    {/* Nearest Places Panel */}
+    {userLocation && places && places.length > 0 && (
+      <div className="absolute bottom-4 left-4 z-[1000] bg-white p-3 rounded shadow-md max-h-60 overflow-auto w-64">
+        <h4 className="font-bold text-sm mb-2">Nearest Places</h4>
+        {findNearestPlaces(userLocation, places).map((place, i) => (
+          <button
+            type="button"
+            key={place.id || i}
+            className="block w-full text-sm py-1 text-left cursor-pointer hover:text-blue-600 hover:bg-gray-50 rounded px-1"
+            onClick={() => {
+              if (place.id && onSelectPlace) onSelectPlace(place.id)
+            }}
+          >
+            {i + 1}. {place.name}
+          </button>
+        ))}
+      </div>
+    )}
+    </div>
   )
 }
