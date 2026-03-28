@@ -326,6 +326,17 @@ export function MapView({
       >
         {mapType === 'standard' ? '🛰️ Satellite' : '🗺️ Standard'}
       </button>
+
+      {/* Near Me Button */}
+      <button 
+        type="button"
+        onClick={getUserLocation}
+        className="absolute top-4 right-4 z-[1000] bg-white p-2 rounded shadow text-sm font-medium hover:bg-gray-50 transition-colors"
+        style={{ boxShadow: '0 2px 10px rgba(0,0,0,0.2)' }}
+        title="Show my location"
+      >
+        📍 Near Me
+      </button>
       
       <MapContainer
         center={center}
@@ -408,6 +419,21 @@ export function MapView({
           )
         })}
       </MarkerClusterGroup>
+
+      {/* User Location Marker */}
+      {userLocation && (
+        <Marker 
+          position={[userLocation.lat, userLocation.lng]}
+          icon={L.divIcon({
+            className: '',
+            html: '<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3)"></div>',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+          })}
+        >
+          <Tooltip>Your location</Tooltip>
+        </Marker>
+      )}
 
       {route && route.length > 1 && (
         <>
