@@ -260,22 +260,6 @@ export function MapView({
     )
   }
 
-  // Find nearest places to user location
-  function findNearestPlaces(userLoc, places, limit = 5) {
-    if (!userLoc || !places.length) return []
-    
-    return [...places]
-      .filter(p => p.lat && p.lng)
-      .map(place => ({
-        ...place,
-        distance: Math.sqrt(
-          Math.pow(place.lat - userLoc.lat, 2) + 
-          Math.pow(place.lng - userLoc.lng, 2)
-        )
-      }))
-      .sort((a, b) => a.distance - b.distance)
-      .slice(0, limit)
-  }
 
   // Fetch Google photos for places that have google_place_id but no image_url
   useEffect(() => {
@@ -451,24 +435,6 @@ export function MapView({
       )}
     </MapContainer>
 
-    {/* Nearest Places Panel */}
-    {userLocation && places && places.length > 0 && (
-      <div className="absolute bottom-4 left-4 z-[1000] bg-white p-3 rounded shadow-md max-h-60 overflow-auto w-64">
-        <h4 className="font-bold text-sm mb-2">Nearest Places</h4>
-        {findNearestPlaces(userLocation, places).map((place, i) => (
-          <button
-            type="button"
-            key={place.id || i}
-            className="block w-full text-sm py-1 text-left cursor-pointer hover:text-blue-600 hover:bg-gray-50 rounded px-1"
-            onClick={() => {
-              if (place.id && onSelectPlace) onSelectPlace(place.id)
-            }}
-          >
-            {i + 1}. {place.name}
-          </button>
-        ))}
-      </div>
-    )}
     </div>
   )
 }
