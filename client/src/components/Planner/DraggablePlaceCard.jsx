@@ -1,6 +1,6 @@
 import React from 'react'
 import { useDraggable } from '@dnd-kit/core'
-import { MapPin, DollarSign, Check } from 'lucide-react'
+import { MapPin, DollarSign, Check, ExternalLink } from 'lucide-react'
 
 export default function DraggablePlaceCard({ place, isAssigned, onEdit }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -62,7 +62,14 @@ export default function DraggablePlaceCard({ place, isAssigned, onEdit }) {
         {place.address && (
           <p className="text-xs text-slate-400 truncate flex items-center gap-1 mb-1.5">
             <MapPin className="w-3 h-3 flex-shrink-0" />
-            {place.address}
+            <a 
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.address)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-500 hover:text-blue-700 underline"
+            >
+              {place.address}
+            </a>
           </p>
         )}
 
@@ -101,6 +108,21 @@ export default function DraggablePlaceCard({ place, isAssigned, onEdit }) {
             )}
           </div>
         )}
+
+        {/* Google Maps Button */}
+        <a
+          href={place.lat && place.lng 
+            ? `https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`
+            : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.address || '')}`
+          }
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:text-blue-800 mt-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <ExternalLink className="w-3 h-3" />
+          Google Maps
+        </a>
       </div>
     </div>
   )
