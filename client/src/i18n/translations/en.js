@@ -463,6 +463,7 @@ const en = {
   'trip.tabs.plan': 'Plan',
   'trip.tabs.reservations': 'Bookings',
   'trip.tabs.reservationsShort': 'Book',
+  'trip.tabs.notes': 'Notes',
   'trip.tabs.packing': 'Packing List',
   'trip.tabs.packingShort': 'Packing',
   'trip.tabs.budget': 'Budget',

@@ -17,6 +17,7 @@ import PackingListPanel from '../components/Packing/PackingListPanel'
 import FileManager from '../components/Files/FileManager'
 import BudgetPanel from '../components/Budget/BudgetPanel'
 import CollabPanel from '../components/Collab/CollabPanel'
+import CollabNotes from '../components/Collab/CollabNotes'
 import Navbar from '../components/Layout/Navbar'
 import { useToast } from '../components/shared/Toast'
 import { Map, X, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from 'lucide-react'
@@ -25,6 +26,7 @@ import { joinTrip, leaveTrip, addListener, removeListener } from '../api/websock
 import { addonsApi, accommodationsApi, authApi, tripsApi, assignmentsApi } from '../api/client'
 import { calculateRoute, calculateSegments } from '../components/Map/RouteCalculator'
 import ConfirmDialog from '../components/shared/ConfirmDialog'
+import { useAuthStore } from '../store/authStore'
 
 const MIN_SIDEBAR = 200
 const MAX_SIDEBAR = 520
@@ -34,6 +36,7 @@ export default function TripPlannerPage() {
   const navigate = useNavigate()
   const toast = useToast()
   const { t } = useTranslation()
+  const currentUser = useAuthStore(s => s.user)
   const { settings } = useSettingsStore()
   const tripStore = useTripStore()
   const { trip, days, places, assignments, packingItems, categories, reservations, budgetItems, files, selectedDayId, isLoading } = tripStore
@@ -61,6 +64,7 @@ export default function TripPlannerPage() {
   const TRIP_TABS = [
     { id: 'plan', label: t('trip.tabs.plan') },
     { id: 'buchungen', label: t('trip.tabs.reservations'), shortLabel: t('trip.tabs.reservationsShort') },
+    { id: 'notizen', label: t('trip.tabs.notes') },
     ...(enabledAddons.packing ? [{ id: 'packliste', label: t('trip.tabs.packing'), shortLabel: t('trip.tabs.packingShort') }] : []),
     ...(enabledAddons.budget ? [{ id: 'finanzplan', label: t('trip.tabs.budget') }] : []),
     ...(enabledAddons.documents ? [{ id: 'dateien', label: t('trip.tabs.files') }] : []),
@@ -692,6 +696,14 @@ export default function TripPlannerPage() {
         {activeTab === 'packliste' && (
           <div style={{ height: '100%', overflowY: 'auto', overscrollBehavior: 'contain', maxWidth: 1200, margin: '0 auto', width: '100%', padding: '8px 0' }}>
             <PackingListPanel tripId={tripId} items={packingItems} />
+          </div>
+        )}
+
+        {activeTab === 'notizen' && (
+          <div style={{ height: '100%', maxWidth: 1400, margin: '0 auto', width: '100%', padding: 12, overflow: 'hidden', overscrollBehavior: 'contain' }}>
+            <div style={{ height: '100%', background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--border-faint)', overflow: 'hidden' }}>
+              <CollabNotes tripId={tripId} currentUser={currentUser} />
+            </div>
           </div>
         )}
 

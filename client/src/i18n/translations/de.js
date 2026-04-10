@@ -463,6 +463,7 @@ const de = {
   'trip.tabs.plan': 'Karte',
   'trip.tabs.reservations': 'Buchungen',
   'trip.tabs.reservationsShort': 'Buchung',
+  'trip.tabs.notes': 'Notizen',
   'trip.tabs.packing': 'Liste',
   'trip.tabs.packingShort': 'Liste',
   'trip.tabs.budget': 'Budget',
