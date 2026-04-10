@@ -6,10 +6,9 @@ const { v4: uuidv4 } = require('uuid');
 const { db, canAccessTrip, isOwner } = require('../db/database');
 const { authenticate, demoUploadBlock } = require('../middleware/auth');
 const { broadcast } = require('../websocket');
+const { coversDir, uploadsDir } = require('../paths');
 
 const router = express.Router();
-
-const coversDir = path.join(__dirname, '../../uploads/covers');
 const coverStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     if (!fs.existsSync(coversDir)) fs.mkdirSync(coversDir, { recursive: true });
@@ -217,10 +216,10 @@ router.post('/:id/cover', authenticate, demoUploadBlock, uploadCover.single('cov
   if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
 
   if (trip.cover_image) {
-    const oldPath = path.join(__dirname, '../../', trip.cover_image.replace(/^\//, ''));
+    const oldPath = path.join(uploadsDir, trip.cover_image.replace(/^\/?uploads\//, ''));
     const resolvedPath = path.resolve(oldPath);
-    const uploadsDir = path.resolve(__dirname, '../../uploads');
-    if (resolvedPath.startsWith(uploadsDir) && fs.existsSync(resolvedPath)) {
+    const resolvedUploadsDir = path.resolve(uploadsDir);
+    if (resolvedPath.startsWith(resolvedUploadsDir) && fs.existsSync(resolvedPath)) {
       fs.unlinkSync(resolvedPath);
     }
   }

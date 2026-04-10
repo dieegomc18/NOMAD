@@ -3,21 +3,13 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
-const fs = require('fs');
+const { uploadsDir, ensureStorageDirs, migrateLegacyUploads } = require('./paths');
 
 const app = express();
 
-// Create upload directories on startup
-const uploadsDir = path.join(__dirname, '../uploads');
-const photosDir = path.join(uploadsDir, 'photos');
-const filesDir = path.join(uploadsDir, 'files');
-const coversDir = path.join(uploadsDir, 'covers');
-const backupsDir = path.join(__dirname, '../data/backups');
-const tmpDir = path.join(__dirname, '../data/tmp');
-
-[uploadsDir, photosDir, filesDir, coversDir, backupsDir, tmpDir].forEach(dir => {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-});
+// Keep all writable app data under /app/data so a single Railway volume persists it.
+migrateLegacyUploads();
+ensureStorageDirs();
 
 // Middleware
 const allowedOrigins = process.env.ALLOWED_ORIGINS
@@ -51,7 +43,7 @@ app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Serve uploaded files
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(uploadsDir));
 
 // Routes
 const authRoutes = require('./routes/auth');

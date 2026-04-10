@@ -6,10 +6,9 @@ const { v4: uuidv4 } = require('uuid');
 const { db, canAccessTrip } = require('../db/database');
 const { authenticate, demoUploadBlock } = require('../middleware/auth');
 const { broadcast } = require('../websocket');
+const { filesDir } = require('../paths');
 
 const router = express.Router({ mergeParams: true });
-
-const filesDir = path.join(__dirname, '../../uploads/files');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {

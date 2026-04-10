@@ -1,12 +1,9 @@
 const cron = require('node-cron');
 const archiver = require('archiver');
-const path = require('path');
 const fs = require('fs');
+const { dataDir, backupsDir, uploadsDir } = require('./paths');
 
-const dataDir = path.join(__dirname, '../data');
-const backupsDir = path.join(dataDir, 'backups');
-const uploadsDir = path.join(__dirname, '../uploads');
-const settingsFile = path.join(dataDir, 'backup-settings.json');
+const settingsFile = require('path').join(dataDir, 'backup-settings.json');
 
 const CRON_EXPRESSIONS = {
   hourly:  '0 * * * *',

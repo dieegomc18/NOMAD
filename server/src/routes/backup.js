@@ -7,18 +7,15 @@ const fs = require('fs');
 const { authenticate, adminOnly } = require('../middleware/auth');
 const scheduler = require('../scheduler');
 const { db, closeDb, reinitialize } = require('../db/database');
+const { dataDir, backupsDir, uploadsDir, ensureStorageDirs } = require('../paths');
 
 const router = express.Router();
 
 // All backup routes require admin
 router.use(authenticate, adminOnly);
 
-const dataDir = path.join(__dirname, '../../data');
-const backupsDir = path.join(dataDir, 'backups');
-const uploadsDir = path.join(__dirname, '../../uploads');
-
 function ensureBackupsDir() {
-  if (!fs.existsSync(backupsDir)) fs.mkdirSync(backupsDir, { recursive: true });
+  ensureStorageDirs();
 }
 
 function formatSize(bytes) {

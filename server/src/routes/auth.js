@@ -8,15 +8,13 @@ const { v4: uuid } = require('uuid');
 const fetch = require('node-fetch');
 const { db } = require('../db/database');
 const { authenticate, demoUploadBlock } = require('../middleware/auth');
+const { avatarsDir } = require('../paths');
 
 const router = express.Router();
 const { JWT_SECRET } = require('../config');
 
-const avatarDir = path.join(__dirname, '../../uploads/avatars');
-if (!fs.existsSync(avatarDir)) fs.mkdirSync(avatarDir, { recursive: true });
-
 const avatarStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, avatarDir),
+  destination: (req, file, cb) => cb(null, avatarsDir),
   filename: (req, file, cb) => cb(null, uuid() + path.extname(file.originalname))
 });
 const ALLOWED_AVATAR_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
@@ -290,7 +288,7 @@ router.post('/avatar', authenticate, demoUploadBlock, avatarUpload.single('avata
 
   const current = db.prepare('SELECT avatar FROM users WHERE id = ?').get(req.user.id);
   if (current && current.avatar) {
-    const oldPath = path.join(avatarDir, current.avatar);
+    const oldPath = path.join(avatarsDir, current.avatar);
     if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
   }
 
@@ -305,7 +303,7 @@ router.post('/avatar', authenticate, demoUploadBlock, avatarUpload.single('avata
 router.delete('/avatar', authenticate, (req, res) => {
   const current = db.prepare('SELECT avatar FROM users WHERE id = ?').get(req.user.id);
   if (current && current.avatar) {
-    const filePath = path.join(avatarDir, current.avatar);
+    const filePath = path.join(avatarsDir, current.avatar);
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
   }
 
