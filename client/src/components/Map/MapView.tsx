@@ -398,6 +398,12 @@ export const MapView = memo(function MapView({
 
   // photoUrls: only base64 thumbs for smooth map zoom
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>(getAllThumbs)
+  const [mapType, setMapType] = useState<'standard' | 'satellite'>('standard')
+  const satelliteTileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+  const effectiveTileUrl = mapType === 'satellite' ? satelliteTileUrl : tileUrl
+  const effectiveAttribution = mapType === 'satellite'
+    ? '&copy; Esri'
+    : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 
   // Fetch photos via shared service — subscribe to thumb (base64) availability
   const placeIds = useMemo(() => places.map(p => p.id).join(','), [places])
@@ -497,23 +503,48 @@ export const MapView = memo(function MapView({
   }), [places, selectedPlaceId, dayOrderMap, photoUrls, onMarkerClick, isTouchDevice])
 
   return (
-    <MapContainer
-      id="trek-map"
-      center={center}
-      zoom={zoom}
-      zoomControl={false}
-      className="w-full h-full"
-      style={{ background: '#e5e7eb' }}
-    >
-      <TileLayer
-        url={tileUrl}
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        maxZoom={19}
-        keepBuffer={8}
-        updateWhenZooming={false}
-        updateWhenIdle={true}
-        referrerPolicy="strict-origin-when-cross-origin"
-      />
+    <div className="relative w-full h-full">
+      <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 1000 }}>
+        <button
+          type="button"
+          onClick={() => setMapType(current => current === 'standard' ? 'satellite' : 'standard')}
+          style={{
+            minWidth: 92,
+            height: 36,
+            padding: '0 12px',
+            borderRadius: 999,
+            border: '1px solid rgba(15, 23, 42, 0.08)',
+            background: 'rgba(255,255,255,0.96)',
+            color: '#0f172a',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: 'pointer',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
+            backdropFilter: 'blur(8px)',
+          }}
+          title={mapType === 'standard' ? 'Switch to satellite view' : 'Switch to standard view'}
+        >
+          {mapType === 'standard' ? 'Satellite' : 'Standard'}
+        </button>
+      </div>
+
+      <MapContainer
+        id="trek-map"
+        center={center}
+        zoom={zoom}
+        zoomControl={false}
+        className="w-full h-full"
+        style={{ background: '#e5e7eb' }}
+      >
+        <TileLayer
+          url={effectiveTileUrl}
+          attribution={effectiveAttribution}
+          maxZoom={19}
+          keepBuffer={8}
+          updateWhenZooming={false}
+          updateWhenIdle={true}
+          referrerPolicy="strict-origin-when-cross-origin"
+        />
 
       <MapController center={center} zoom={zoom} />
       <BoundsController places={dayPlaces.length > 0 ? dayPlaces : places} fitKey={fitKey} paddingOpts={paddingOpts} hasDayDetail={hasDayDetail} />
@@ -569,6 +600,7 @@ export const MapView = memo(function MapView({
           )
         } catch { return null }
       })}
-    </MapContainer>
+      </MapContainer>
+    </div>
   )
 })

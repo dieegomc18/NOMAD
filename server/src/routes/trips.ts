@@ -28,12 +28,12 @@ import {
   ValidationError,
   TRIP_SELECT,
 } from '../services/tripService';
+import { coversDir } from '../paths';
 
 const router = express.Router();
 
 const MAX_COVER_SIZE = 20 * 1024 * 1024; // 20 MB
 
-const coversDir = path.join(__dirname, '../../uploads/covers');
 const coverStorage = multer.diskStorage({
   destination: (_req, _file, cb) => {
     if (!fs.existsSync(coversDir)) fs.mkdirSync(coversDir, { recursive: true });

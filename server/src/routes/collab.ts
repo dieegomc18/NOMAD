@@ -29,9 +29,9 @@ import {
   addOrRemoveReaction,
   fetchLinkPreview,
 } from '../services/collabService';
+import { filesDir } from '../paths';
 
 const MAX_NOTE_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
-const filesDir = path.join(__dirname, '../../uploads/files');
 const noteUpload = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, cb) => { if (!fs.existsSync(filesDir)) fs.mkdirSync(filesDir, { recursive: true }); cb(null, filesDir) },

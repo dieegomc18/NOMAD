@@ -5,14 +5,11 @@ import fs from 'fs';
 import Database from 'better-sqlite3';
 import { db, closeDb, reinitialize } from '../db/database';
 import * as scheduler from '../scheduler';
+import { dataDir, backupsDir, uploadsDir, ensureStorageDirs } from '../paths';
 
 // ---------------------------------------------------------------------------
 // Paths
 // ---------------------------------------------------------------------------
-
-const dataDir = path.join(__dirname, '../../data');
-const backupsDir = path.join(dataDir, 'backups');
-const uploadsDir = path.join(__dirname, '../../uploads');
 
 export const MAX_BACKUP_UPLOAD_SIZE = 500 * 1024 * 1024; // 500 MB
 
@@ -21,7 +18,7 @@ export const MAX_BACKUP_UPLOAD_SIZE = 500 * 1024 * 1024; // 500 MB
 // ---------------------------------------------------------------------------
 
 export function ensureBackupsDir(): void {
-  if (!fs.existsSync(backupsDir)) fs.mkdirSync(backupsDir, { recursive: true });
+  ensureStorageDirs();
 }
 
 export function formatSize(bytes: number): string {

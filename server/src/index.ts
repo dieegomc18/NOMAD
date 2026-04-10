@@ -1,20 +1,10 @@
 import 'dotenv/config';
-import path from 'node:path';
-import fs from 'node:fs';
 import { createApp } from './app';
+import { ensureStorageDirs, migrateLegacyUploads } from './paths';
 
-// Create upload and data directories on startup
-const uploadsDir = path.join(__dirname, '../uploads');
-const photosDir = path.join(uploadsDir, 'photos');
-const filesDir = path.join(uploadsDir, 'files');
-const coversDir = path.join(uploadsDir, 'covers');
-const avatarsDir = path.join(uploadsDir, 'avatars');
-const backupsDir = path.join(__dirname, '../data/backups');
-const tmpDir = path.join(__dirname, '../data/tmp');
-
-[uploadsDir, photosDir, filesDir, coversDir, avatarsDir, backupsDir, tmpDir].forEach(dir => {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-});
+// Keep all writable app data under /app/data so a single Railway volume persists it.
+migrateLegacyUploads();
+ensureStorageDirs();
 
 const app = createApp();
 

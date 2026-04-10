@@ -38,6 +38,7 @@ import memoriesRoutes from './routes/memories/unified';
 import notificationRoutes from './routes/notifications';
 import shareRoutes from './routes/share';
 import { mcpHandler } from './mcp';
+import { avatarsDir, coversDir, photosDir } from './paths';
 import { Addon } from './types';
 import { getPhotoProviderConfig } from './services/memories/helpersService';
 
@@ -143,15 +144,15 @@ export function createApp(): express.Application {
   }
 
   // Static: avatars and covers are public
-  app.use('/uploads/avatars', express.static(path.join(__dirname, '../uploads/avatars')));
-  app.use('/uploads/covers', express.static(path.join(__dirname, '../uploads/covers')));
+  app.use('/uploads/avatars', express.static(avatarsDir));
+  app.use('/uploads/covers', express.static(coversDir));
 
   // Photos require auth or valid share token
   app.get('/uploads/photos/:filename', (req: Request, res: Response) => {
     const safeName = path.basename(req.params.filename);
-    const filePath = path.join(__dirname, '../uploads/photos', safeName);
+    const filePath = path.join(photosDir, safeName);
     const resolved = path.resolve(filePath);
-    if (!resolved.startsWith(path.resolve(__dirname, '../uploads/photos'))) {
+    if (!resolved.startsWith(path.resolve(photosDir))) {
       return res.status(403).send('Forbidden');
     }
     if (!fs.existsSync(resolved)) return res.status(404).send('Not found');

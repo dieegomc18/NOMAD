@@ -2,10 +2,8 @@ import cron, { type ScheduledTask } from 'node-cron';
 import archiver from 'archiver';
 import path from 'node:path';
 import fs from 'node:fs';
+import { dataDir, backupsDir, uploadsDir } from './paths';
 
-const dataDir = path.join(__dirname, '../data');
-const backupsDir = path.join(dataDir, 'backups');
-const uploadsDir = path.join(__dirname, '../uploads');
 const settingsFile = path.join(dataDir, 'backup-settings.json');
 
 const VALID_INTERVALS = ['hourly', 'daily', 'weekly', 'monthly'];

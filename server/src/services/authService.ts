@@ -16,6 +16,7 @@ import { createEphemeralToken } from './ephemeralTokens';
 import { revokeUserSessions } from '../mcp';
 import { startTripReminders } from '../scheduler';
 import { User } from '../types';
+import { avatarsDir } from '../paths';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -32,9 +33,6 @@ const ADMIN_SETTINGS_KEYS = [
   'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from', 'smtp_skip_tls_verify',
   'notification_channels', 'admin_webhook_url',
 ];
-
-const avatarDir = path.join(__dirname, '../../uploads/avatars');
-if (!fs.existsSync(avatarDir)) fs.mkdirSync(avatarDir, { recursive: true });
 
 const KNOWN_COUNTRIES = new Set([
   'Japan', 'Germany', 'Deutschland', 'France', 'Frankreich', 'Italy', 'Italien', 'Spain', 'Spanien',
@@ -554,7 +552,7 @@ export function getSettings(userId: number): { error?: string; status?: number; 
 export function saveAvatar(userId: number, filename: string) {
   const current = db.prepare('SELECT avatar FROM users WHERE id = ?').get(userId) as { avatar: string | null } | undefined;
   if (current && current.avatar) {
-    const oldPath = path.join(avatarDir, current.avatar);
+      const oldPath = path.join(avatarsDir, current.avatar);
     if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
   }
 
@@ -567,7 +565,7 @@ export function saveAvatar(userId: number, filename: string) {
 export function deleteAvatar(userId: number) {
   const current = db.prepare('SELECT avatar FROM users WHERE id = ?').get(userId) as { avatar: string | null } | undefined;
   if (current && current.avatar) {
-    const filePath = path.join(avatarDir, current.avatar);
+      const filePath = path.join(avatarsDir, current.avatar);
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
   }
   db.prepare('UPDATE users SET avatar = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(userId);

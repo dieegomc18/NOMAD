@@ -281,7 +281,14 @@ export default function PlaceInspector({
             {place.address && (
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4, marginTop: 6 }}>
                 <MapPin size={11} color="var(--text-faint)" style={{ flexShrink: 0, marginTop: 2 }} />
-                <span style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: '1.4', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{place.address}</span>
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.address)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ fontSize: 12, color: 'var(--link-color)', lineHeight: '1.4', textDecoration: 'underline', cursor: 'pointer', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                >
+                  {place.address}
+                </a>
               </div>
             )}
             {place.place_time && (

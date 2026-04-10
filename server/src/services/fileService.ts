@@ -5,6 +5,7 @@ import { JWT_SECRET } from '../config';
 import { db, canAccessTrip } from '../db/database';
 import { consumeEphemeralToken } from './ephemeralTokens';
 import { TripFile } from '../types';
+import { filesDir } from '../paths';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -13,8 +14,6 @@ import { TripFile } from '../types';
 export const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 export const DEFAULT_ALLOWED_EXTENSIONS = 'jpg,jpeg,png,gif,webp,heic,pdf,doc,docx,xls,xlsx,txt,csv';
 export const BLOCKED_EXTENSIONS = ['.svg', '.html', '.htm', '.xml'];
-export const filesDir = path.join(__dirname, '../../uploads/files');
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

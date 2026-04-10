@@ -37,6 +37,7 @@ import {
   createWsToken,
   createResourceToken,
 } from '../services/authService';
+import { avatarsDir } from '../paths';
 
 const router = express.Router();
 
@@ -44,11 +45,8 @@ const router = express.Router();
 // Avatar upload (multer config stays in route — middleware concern)
 // ---------------------------------------------------------------------------
 
-const avatarDir = path.join(__dirname, '../../uploads/avatars');
-if (!fs.existsSync(avatarDir)) fs.mkdirSync(avatarDir, { recursive: true });
-
 const avatarStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, avatarDir),
+  destination: (_req, _file, cb) => cb(null, avatarsDir),
   filename: (_req, file, cb) => cb(null, uuid() + path.extname(file.originalname)),
 });
 const ALLOWED_AVATAR_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];

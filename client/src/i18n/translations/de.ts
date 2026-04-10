@@ -756,6 +756,7 @@ const de: Record<string, string | { name: string; category: string }[]> = {
   'trip.tabs.plan': 'Karte',
   'trip.tabs.reservations': 'Buchungen',
   'trip.tabs.reservationsShort': 'Buchung',
+  'trip.tabs.notes': 'Notizen',
   'trip.tabs.packing': 'Liste',
   'trip.tabs.packingShort': 'Liste',
   'trip.tabs.lists': 'Listen',
@@ -1695,4 +1696,3 @@ const de: Record<string, string | { name: string; category: string }[]> = {
 }
 
 export default de
-

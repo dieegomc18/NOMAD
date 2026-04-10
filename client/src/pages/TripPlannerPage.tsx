@@ -21,12 +21,14 @@ import TodoListPanel from '../components/Todo/TodoListPanel'
 import FileManager from '../components/Files/FileManager'
 import BudgetPanel from '../components/Budget/BudgetPanel'
 import CollabPanel from '../components/Collab/CollabPanel'
+import CollabNotes from '../components/Collab/CollabNotes'
 import Navbar from '../components/Layout/Navbar'
 import { useToast } from '../components/shared/Toast'
 import { Map, X, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Ticket, PackageCheck, Wallet, FolderOpen, Camera, Users } from 'lucide-react'
 import { useTranslation } from '../i18n'
 import { addonsApi, accommodationsApi, authApi, tripsApi, assignmentsApi, mapsApi } from '../api/client'
 import ConfirmDialog from '../components/shared/ConfirmDialog'
+import { useAuthStore } from '../store/authStore'
 import { useResizablePanels } from '../hooks/useResizablePanels'
 import { useTripWebSocket } from '../hooks/useTripWebSocket'
 import { useRouteCalculation } from '../hooks/useRouteCalculation'
@@ -72,6 +74,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
   const navigate = useNavigate()
   const toast = useToast()
   const { t, language } = useTranslation()
+  const currentUser = useAuthStore(s => s.user)
   const { settings } = useSettingsStore()
   const trip = useTripStore(s => s.trip)
   const days = useTripStore(s => s.days)
@@ -125,6 +128,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
   const TRIP_TABS = [
     { id: 'plan', label: t('trip.tabs.plan'), icon: Map },
     { id: 'buchungen', label: t('trip.tabs.reservations'), shortLabel: t('trip.tabs.reservationsShort'), icon: Ticket },
+    ...(enabledAddons.collab ? [{ id: 'notes', label: t('trip.tabs.notes'), icon: Users }] : []),
     ...(enabledAddons.packing ? [{ id: 'listen', label: t('trip.tabs.lists'), shortLabel: t('trip.tabs.listsShort'), icon: PackageCheck }] : []),
     ...(enabledAddons.budget ? [{ id: 'finanzplan', label: t('trip.tabs.budget'), icon: Wallet }] : []),
     ...(enabledAddons.documents ? [{ id: 'dateien', label: t('trip.tabs.files'), icon: FolderOpen }] : []),
@@ -909,6 +913,14 @@ export default function TripPlannerPage(): React.ReactElement | null {
         {activeTab === 'listen' && (
           <div style={{ height: '100%', overflowY: 'auto', overscrollBehavior: 'contain', maxWidth: 1800, margin: '0 auto', width: '100%', padding: '8px 0' }}>
             <ListsContainer tripId={tripId} packingItems={packingItems} todoItems={todoItems} />
+          </div>
+        )}
+
+        {activeTab === 'notes' && (
+          <div style={{ height: '100%', maxWidth: 1400, margin: '0 auto', width: '100%', padding: 12, overflow: 'hidden', overscrollBehavior: 'contain' }}>
+            <div style={{ height: '100%', background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--border-faint)', overflow: 'hidden' }}>
+              <CollabNotes tripId={tripId} currentUser={currentUser} />
+            </div>
           </div>
         )}
 

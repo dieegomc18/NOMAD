@@ -7,6 +7,7 @@ import { listBudgetItems } from './budgetService';
 import { listItems as listPackingItems } from './packingService';
 import { listReservations } from './reservationService';
 import { listNotes as listCollabNotes } from './collabService';
+import { uploadsDir } from '../paths';
 
 export const MS_PER_DAY = 86400000;
 export const MAX_TRIP_DAYS = 365;
@@ -268,10 +269,10 @@ export function deleteTrip(tripId: string | number, userId: number, userRole: st
 
 export function deleteOldCover(coverImage: string | null | undefined) {
   if (!coverImage) return;
-  const oldPath = path.join(__dirname, '../../', coverImage.replace(/^\//, ''));
+  const oldPath = path.join(uploadsDir, coverImage.replace(/^\/?uploads\//, ''));
   const resolvedPath = path.resolve(oldPath);
-  const uploadsDir = path.resolve(__dirname, '../../uploads');
-  if (resolvedPath.startsWith(uploadsDir) && fs.existsSync(resolvedPath)) {
+  const resolvedUploadsDir = path.resolve(uploadsDir);
+  if (resolvedPath.startsWith(resolvedUploadsDir) && fs.existsSync(resolvedPath)) {
     fs.unlinkSync(resolvedPath);
   }
 }

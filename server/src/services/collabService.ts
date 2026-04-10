@@ -3,6 +3,7 @@ import fs from 'fs';
 import { db, canAccessTrip } from '../db/database';
 import { CollabNote, CollabPoll, CollabMessage, TripFile } from '../types';
 import { checkSsrf, createPinnedDispatcher } from '../utils/ssrfGuard';
+import { uploadsDir } from '../paths';
 
 /* ------------------------------------------------------------------ */
 /*  Internal row types                                                 */
@@ -168,7 +169,7 @@ export function deleteNote(tripId: string | number, noteId: string | number): bo
   // Clean up attached files from disk
   const noteFiles = db.prepare('SELECT id, filename FROM trip_files WHERE note_id = ?').all(noteId) as NoteFileRow[];
   for (const f of noteFiles) {
-    const filePath = path.join(__dirname, '../../uploads', f.filename);
+    const filePath = path.join(uploadsDir, f.filename);
     try { fs.unlinkSync(filePath); } catch { /* ignore */ }
   }
   db.prepare('DELETE FROM trip_files WHERE note_id = ?').run(noteId);
@@ -202,7 +203,7 @@ export function deleteNoteFile(noteId: string | number, fileId: string | number)
   const file = db.prepare('SELECT * FROM trip_files WHERE id = ? AND note_id = ?').get(fileId, noteId) as TripFile | undefined;
   if (!file) return false;
 
-  const filePath = path.join(__dirname, '../../uploads', file.filename);
+  const filePath = path.join(uploadsDir, file.filename);
   try { fs.unlinkSync(filePath); } catch { /* ignore */ }
 
   db.prepare('DELETE FROM trip_files WHERE id = ?').run(fileId);
