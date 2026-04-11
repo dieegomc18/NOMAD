@@ -10,6 +10,7 @@ import PlacesSidebar from '../components/Planner/PlacesSidebar'
 import PlaceInspector from '../components/Planner/PlaceInspector'
 import DayDetailPanel from '../components/Planner/DayDetailPanel'
 import PlaceFormModal from '../components/Planner/PlaceFormModal'
+import TodayPanel from '../components/Planner/TodayPanel'
 import FinalizationPanel from '../components/Planner/FinalizationPanel'
 import TripFormModal from '../components/Trips/TripFormModal'
 import TripMembersModal from '../components/Trips/TripMembersModal'
@@ -24,7 +25,7 @@ import CollabPanel from '../components/Collab/CollabPanel'
 import CollabNotes from '../components/Collab/CollabNotes'
 import Navbar from '../components/Layout/Navbar'
 import { useToast } from '../components/shared/Toast'
-import { Map, X, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Ticket, PackageCheck, Wallet, FolderOpen, Camera, Users, Download, ChevronDown, ClipboardCheck } from 'lucide-react'
+import { Map, X, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Ticket, PackageCheck, Wallet, FolderOpen, Camera, Users, Download, ChevronDown, ClipboardCheck, CalendarCheck2 } from 'lucide-react'
 import { useTranslation } from '../i18n'
 import { addonsApi, accommodationsApi, authApi, tripsApi, assignmentsApi, mapsApi } from '../api/client'
 import ConfirmDialog from '../components/shared/ConfirmDialog'
@@ -129,6 +130,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
 
   const TRIP_TABS = [
     { id: 'plan', label: t('trip.tabs.plan'), icon: Map },
+    { id: 'today', label: 'Today', icon: CalendarCheck2 },
     { id: 'finalize', label: 'Finalize', icon: ClipboardCheck },
     { id: 'buchungen', label: t('trip.tabs.reservations'), shortLabel: t('trip.tabs.reservationsShort'), icon: Ticket },
     ...(enabledAddons.collab ? [{ id: 'notes', label: t('trip.tabs.notes'), icon: Users }] : []),
@@ -987,6 +989,20 @@ export default function TripPlannerPage(): React.ReactElement | null {
             onUpdatePlace={(placeId, data) => tripActions.updatePlace(tripId, placeId, data)}
             onPlaceClick={(placeId) => {
               handlePlaceClick(placeId)
+              handleTabChange('plan')
+            }}
+          />
+        )}
+
+        {activeTab === 'today' && (
+          <TodayPanel
+            days={days}
+            assignments={assignments}
+            reservations={reservations}
+            onSelectDay={(dayId) => handleSelectDay(dayId, true)}
+            onOpenPlace={(placeId, dayId, assignmentId) => {
+              handleSelectDay(dayId, true)
+              handlePlaceClick(placeId, assignmentId)
               handleTabChange('plan')
             }}
           />
