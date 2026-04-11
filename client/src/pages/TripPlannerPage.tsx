@@ -184,6 +184,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
   const [showReservationModal, setShowReservationModal] = useState<boolean>(false)
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null)
   const [fitKey, setFitKey] = useState<number>(0)
+  const [mapMountKey, setMapMountKey] = useState<number>(0)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState<'left' | 'right' | null>(null)
   const [deletePlaceId, setDeletePlaceId] = useState<number | null>(null)
 
@@ -216,6 +217,21 @@ export default function TripPlannerPage(): React.ReactElement | null {
   useTripWebSocket(tripId)
 
   const [mapCategoryFilter, setMapCategoryFilter] = useState<string>('')
+
+  useEffect(() => {
+    if (activeTab !== 'plan') return
+    setMapMountKey(key => key + 1)
+    const onPageShow = () => setMapMountKey(key => key + 1)
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') setMapMountKey(key => key + 1)
+    }
+    window.addEventListener('pageshow', onPageShow)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('pageshow', onPageShow)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [activeTab])
 
   const [expandedDayIds, setExpandedDayIds] = useState<Set<number> | null>(null)
 
@@ -679,6 +695,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
         {activeTab === 'plan' && (
           <div style={{ position: 'absolute', inset: 0, minHeight: 320 }}>
             <MapView
+              key={mapMountKey}
               places={mapPlaces}
               dayPlaces={dayPlaces}
               route={route}

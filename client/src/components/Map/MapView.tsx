@@ -429,6 +429,8 @@ export const MapView = memo(function MapView({
   hasInspector = false,
   hasDayDetail = false,
 }) {
+  const [mapReloadKey, setMapReloadKey] = useState(0)
+
   // Dynamic padding: account for sidebars + bottom inspector + day detail panel
   const paddingOpts = useMemo(() => {
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
@@ -532,7 +534,32 @@ export const MapView = memo(function MapView({
         </button>
       </div>
 
+      <div style={{ position: 'absolute', top: 56, left: 12, zIndex: 1000 }}>
+        <button
+          type="button"
+          onClick={() => setMapReloadKey(key => key + 1)}
+          style={{
+            minWidth: 92,
+            height: 34,
+            padding: '0 12px',
+            borderRadius: 999,
+            border: '1px solid rgba(15, 23, 42, 0.08)',
+            background: 'rgba(255,255,255,0.96)',
+            color: '#0f172a',
+            fontSize: 12,
+            fontWeight: 650,
+            cursor: 'pointer',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
+            backdropFilter: 'blur(8px)',
+          }}
+          title="Reload the map if Safari shows a blank area"
+        >
+          Reload map
+        </button>
+      </div>
+
       <MapContainer
+        key={`${effectiveTileUrl}-${mapReloadKey}`}
         id="trek-map"
         center={center}
         zoom={zoom}
