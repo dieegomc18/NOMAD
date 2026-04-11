@@ -28,6 +28,7 @@ import {
   ValidationError,
   TRIP_SELECT,
 } from '../services/tripService';
+import { listPlaces } from '../services/placeService';
 import { coversDir } from '../paths';
 
 const router = express.Router();
@@ -57,6 +58,115 @@ const uploadCover = multer({
     }
   },
 });
+
+type ExportFormat = 'csv' | 'kml' | 'geojson';
+
+function safeFilename(value: string): string {
+  return value
+    .trim()
+    .replace(/[^a-z0-9-]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80) || 'trip';
+}
+
+function googleMapsUrl(place: { name?: string; google_place_id?: string | null; lat?: number | null; lng?: number | null }): string {
+  if (place.google_place_id) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.name || '')}&query_place_id=${encodeURIComponent(place.google_place_id)}`;
+  }
+  if (place.lat != null && place.lng != null) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${place.lat},${place.lng}`)}`;
+  }
+  return place.name ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.name)}` : '';
+}
+
+function escapeCsv(value: unknown): string {
+  const text = value == null ? '' : String(value);
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function escapeXml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function exportCsv(places: any[]): string {
+  const headers = ['name', 'address', 'latitude', 'longitude', 'category', 'notes', 'google_place_id', 'google_maps_url', 'website', 'phone'];
+  const rows = places.map(place => [
+    place.name,
+    place.address,
+    place.lat,
+    place.lng,
+    place.category_name,
+    place.notes,
+    place.google_place_id,
+    googleMapsUrl(place),
+    place.website,
+    place.phone,
+  ]);
+  return [headers, ...rows].map(row => row.map(escapeCsv).join(',')).join('\r\n') + '\r\n';
+}
+
+function exportKml(trip: Trip, places: any[]): string {
+  const placemarks = places
+    .filter(place => place.lat != null && place.lng != null)
+    .map(place => {
+      const description = [
+        place.category_name ? `<p><strong>Category:</strong> ${escapeXml(place.category_name)}</p>` : '',
+        place.address ? `<p><strong>Address:</strong> ${escapeXml(place.address)}</p>` : '',
+        place.notes ? `<p>${escapeXml(place.notes)}</p>` : '',
+        `<p><a href="${escapeXml(googleMapsUrl(place))}">Open in Google Maps</a></p>`,
+      ].join('');
+
+      return `    <Placemark>
+      <name>${escapeXml(place.name)}</name>
+      <description><![CDATA[${description}]]></description>
+      <Point><coordinates>${place.lng},${place.lat},0</coordinates></Point>
+    </Placemark>`;
+    })
+    .join('\n');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${escapeXml(trip.title)}</name>
+${placemarks}
+  </Document>
+</kml>
+`;
+}
+
+function exportGeoJson(trip: Trip, places: any[]) {
+  return {
+    type: 'FeatureCollection',
+    name: trip.title,
+    features: places
+      .filter(place => place.lat != null && place.lng != null)
+      .map(place => ({
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: [Number(place.lng), Number(place.lat)],
+        },
+        properties: {
+          id: place.id,
+          name: place.name,
+          address: place.address,
+          category: place.category_name,
+          category_color: place.category_color,
+          category_icon: place.category_icon,
+          notes: place.notes,
+          google_place_id: place.google_place_id,
+          google_maps_url: googleMapsUrl(place),
+          website: place.website,
+          phone: place.phone,
+        },
+      })),
+  };
+}
 
 // ── List trips ────────────────────────────────────────────────────────────
 
@@ -109,9 +219,41 @@ router.post('/', authenticate, (req: Request, res: Response) => {
 
 router.get('/:id', authenticate, (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
-  const trip = getTrip(req.params.id, authReq.user.id);
+  const trip = getTrip(req.params.id, authReq.user.id) as Trip | null;
   if (!trip) return res.status(404).json({ error: 'Trip not found' });
   res.json({ trip });
+});
+
+// Export trip places as CSV/KML/GeoJSON for Google My Maps, Google Earth,
+// spreadsheets, or public-map workflows.
+router.get('/:id/export', authenticate, (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
+  const trip = getTrip(req.params.id, authReq.user.id) as Trip | null;
+  if (!trip) return res.status(404).json({ error: 'Trip not found' });
+
+  const format = String(req.query.format || 'csv').toLowerCase() as ExportFormat;
+  if (!['csv', 'kml', 'geojson'].includes(format)) {
+    return res.status(400).json({ error: 'Unsupported export format. Use csv, kml, or geojson.' });
+  }
+
+  const places = listPlaces(req.params.id, {});
+  const filename = `${safeFilename(trip.title)}-places.${format === 'geojson' ? 'geojson' : format}`;
+
+  if (format === 'csv') {
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(exportCsv(places));
+  }
+
+  if (format === 'kml') {
+    res.setHeader('Content-Type', 'application/vnd.google-earth.kml+xml; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(exportKml(trip, places));
+  }
+
+  res.setHeader('Content-Type', 'application/geo+json; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  return res.send(JSON.stringify(exportGeoJson(trip, places), null, 2));
 });
 
 // ── Update trip ───────────────────────────────────────────────────────────

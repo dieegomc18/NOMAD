@@ -24,7 +24,7 @@ import CollabPanel from '../components/Collab/CollabPanel'
 import CollabNotes from '../components/Collab/CollabNotes'
 import Navbar from '../components/Layout/Navbar'
 import { useToast } from '../components/shared/Toast'
-import { Map, X, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Ticket, PackageCheck, Wallet, FolderOpen, Camera, Users } from 'lucide-react'
+import { Map, X, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Ticket, PackageCheck, Wallet, FolderOpen, Camera, Users, Download, ChevronDown } from 'lucide-react'
 import { useTranslation } from '../i18n'
 import { addonsApi, accommodationsApi, authApi, tripsApi, assignmentsApi, mapsApi } from '../api/client'
 import ConfirmDialog from '../components/shared/ConfirmDialog'
@@ -104,6 +104,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
   const [tripAccommodations, setTripAccommodations] = useState<Accommodation[]>([])
   const [allowedFileTypes, setAllowedFileTypes] = useState<string | null>(null)
   const [tripMembers, setTripMembers] = useState<TripMember[]>([])
+  const [exportMenuOpen, setExportMenuOpen] = useState(false)
 
   const loadAccommodations = useCallback(() => {
     if (tripId) {
@@ -151,9 +152,15 @@ export default function TripPlannerPage(): React.ReactElement | null {
 
   const handleTabChange = (tabId: string): void => {
     setActiveTab(tabId)
+    setExportMenuOpen(false)
     sessionStorage.setItem(`trip-tab-${tripId}`, tabId)
     if (tabId === 'finanzplan') tripActions.loadBudgetItems?.(tripId)
     if (tabId === 'dateien' && (!files || files.length === 0)) tripActions.loadFiles?.(tripId)
+  }
+
+  const handleExport = (format: 'csv' | 'kml' | 'geojson'): void => {
+    setExportMenuOpen(false)
+    window.open(`/api/trips/${tripId}/export?format=${format}`, '_blank', 'noopener,noreferrer')
   }
   const { leftWidth, rightWidth, leftCollapsed, rightCollapsed, setLeftCollapsed, setRightCollapsed, startResizeLeft, startResizeRight } = useResizablePanels()
   const { selectedPlaceId, selectedAssignmentId, setSelectedPlaceId, selectAssignment } = usePlaceSelection()
@@ -587,6 +594,72 @@ export default function TripPlannerPage(): React.ReactElement | null {
             </button>
           )
         })}
+        <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}>
+          <button
+            onClick={() => setExportMenuOpen(v => !v)}
+            title="Export map"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '6px 12px', borderRadius: 18,
+              border: '1px solid var(--border-faint)',
+              background: exportMenuOpen ? 'var(--bg-elevated)' : 'var(--bg-secondary)',
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: 600,
+              fontFamily: 'inherit',
+              boxShadow: exportMenuOpen ? '0 8px 22px rgba(0,0,0,0.12)' : 'none',
+            }}
+          >
+            <Download size={14} />
+            <span className="hidden sm:inline">Export</span>
+            <ChevronDown size={13} />
+          </button>
+          {exportMenuOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                right: 0,
+                top: 38,
+                minWidth: 220,
+                borderRadius: 16,
+                border: '1px solid var(--border-faint)',
+                background: 'var(--bg-elevated)',
+                boxShadow: '0 18px 50px rgba(0,0,0,0.18)',
+                padding: 6,
+                zIndex: 80,
+              }}
+            >
+              {[
+                { id: 'kml' as const, label: 'Google My Maps / Earth (.kml)', hint: 'Best for a custom public map' },
+                { id: 'csv' as const, label: 'Spreadsheet (.csv)', hint: 'Includes notes and Google links' },
+                { id: 'geojson' as const, label: 'GeoJSON (.geojson)', hint: 'For web maps and developers' },
+              ].map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => handleExport(item.id)}
+                  style={{
+                    width: '100%',
+                    display: 'block',
+                    textAlign: 'left',
+                    border: 'none',
+                    borderRadius: 12,
+                    background: 'transparent',
+                    color: 'var(--text-primary)',
+                    padding: '9px 10px',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-secondary)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{item.label}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{item.hint}</div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Offset by navbar + tab bar (44px) */}
