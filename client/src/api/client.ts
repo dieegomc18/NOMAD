@@ -85,6 +85,25 @@ export const tripsApi = {
   addMember: (id: number | string, identifier: string) => apiClient.post(`/trips/${id}/members`, { identifier }).then(r => r.data),
   removeMember: (id: number | string, userId: number) => apiClient.delete(`/trips/${id}/members/${userId}`).then(r => r.data),
   copy: (id: number | string, data?: { title?: string }) => apiClient.post(`/trips/${id}/copy`, data || {}).then(r => r.data),
+  exportPlaces: async (id: number | string, format: 'csv' | 'kml' | 'geojson'): Promise<void> => {
+    const res = await apiClient.get(`/trips/${id}/export`, {
+      params: { format },
+      responseType: 'blob',
+    })
+    const disposition = String(res.headers?.['content-disposition'] || '')
+    const filenameMatch = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i)
+    const filename = filenameMatch
+      ? decodeURIComponent(filenameMatch[1])
+      : `trip-places.${format}`
+    const url = URL.createObjectURL(res.data)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  },
 }
 
 export const daysApi = {

@@ -5,7 +5,6 @@ import { useTripStore } from '../store/tripStore'
 import { useCanDo } from '../store/permissionsStore'
 import { useSettingsStore } from '../store/settingsStore'
 import { MapView } from '../components/Map/MapView'
-import { getCached, fetchPhoto } from '../services/photoService'
 import DayPlanSidebar from '../components/Planner/DayPlanSidebar'
 import PlacesSidebar from '../components/Planner/PlacesSidebar'
 import PlaceInspector from '../components/Planner/PlaceInspector'
@@ -158,9 +157,14 @@ export default function TripPlannerPage(): React.ReactElement | null {
     if (tabId === 'dateien' && (!files || files.length === 0)) tripActions.loadFiles?.(tripId)
   }
 
-  const handleExport = (format: 'csv' | 'kml' | 'geojson'): void => {
+  const handleExport = async (format: 'csv' | 'kml' | 'geojson'): Promise<void> => {
     setExportMenuOpen(false)
-    window.open(`/api/trips/${tripId}/export?format=${format}`, '_blank', 'noopener,noreferrer')
+    if (!tripId) return
+    try {
+      await tripsApi.exportPlaces(tripId, format)
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Export failed')
+    }
   }
   const { leftWidth, rightWidth, leftCollapsed, rightCollapsed, setLeftCollapsed, setRightCollapsed, startResizeLeft, startResizeRight } = useResizablePanels()
   const { selectedPlaceId, selectedAssignmentId, setSelectedPlaceId, selectAssignment } = usePlaceSelection()
@@ -184,20 +188,6 @@ export default function TripPlannerPage(): React.ReactElement | null {
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
   }, [])
-
-  // Start photo fetches during splash screen so images are ready when map mounts
-  useEffect(() => {
-    if (isLoading || !places || places.length === 0) return
-    for (const p of places) {
-      if (p.image_url) continue
-      const cacheKey = p.google_place_id || p.osm_id || `${p.lat},${p.lng}`
-      if (!cacheKey || getCached(cacheKey)) continue
-      const photoId = p.google_place_id || p.osm_id
-      if (photoId || (p.lat && p.lng)) {
-        fetchPhoto(cacheKey, photoId || `coords:${p.lat}:${p.lng}`, p.lat, p.lng, p.name)
-      }
-    }
-  }, [isLoading, places])
 
   // Load trip + files (needed for place inspector file section)
   useEffect(() => {

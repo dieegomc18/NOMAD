@@ -273,9 +273,6 @@ function RouteLabel({ midpoint, walkingText, drivingText }: RouteLabelProps) {
   return <Marker position={midpoint} icon={icon} interactive={false} zIndexOffset={2000} />
 }
 
-// Module-level photo cache shared with PlaceAvatar
-import { getCached, isLoading, fetchPhoto, onThumbReady, getAllThumbs } from '../../services/photoService'
-
 // Live location tracker — blue dot with pulse animation (like Apple/Google Maps)
 function LocationTracker() {
   const map = useMap()
@@ -366,6 +363,38 @@ function LocationTracker() {
   )
 }
 
+function MapSizeController({
+  leftWidth,
+  rightWidth,
+  mapType,
+}: {
+  leftWidth: number
+  rightWidth: number
+  mapType: 'standard' | 'satellite'
+}) {
+  const map = useMap()
+
+  useEffect(() => {
+    const invalidate = () => {
+      requestAnimationFrame(() => map.invalidateSize({ animate: false }))
+    }
+
+    invalidate()
+    const timers = [120, 350, 800].map(delay => window.setTimeout(invalidate, delay))
+    const observer = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(invalidate)
+      : null
+    observer?.observe(map.getContainer())
+
+    return () => {
+      timers.forEach(timer => window.clearTimeout(timer))
+      observer?.disconnect()
+    }
+  }, [map, leftWidth, rightWidth, mapType])
+
+  return null
+}
+
 export const MapView = memo(function MapView({
   places = [],
   dayPlaces = [],
@@ -396,51 +425,12 @@ export const MapView = memo(function MapView({
     return { paddingTopLeft: [left, top], paddingBottomRight: [right, bottom] }
   }, [leftWidth, rightWidth, hasInspector, hasDayDetail])
 
-  // photoUrls: only base64 thumbs for smooth map zoom
-  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>(getAllThumbs)
   const [mapType, setMapType] = useState<'standard' | 'satellite'>('standard')
   const satelliteTileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
   const effectiveTileUrl = mapType === 'satellite' ? satelliteTileUrl : tileUrl
   const effectiveAttribution = mapType === 'satellite'
     ? '&copy; Esri'
     : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-
-  // Fetch photos via shared service — subscribe to thumb (base64) availability
-  const placeIds = useMemo(() => places.map(p => p.id).join(','), [places])
-  useEffect(() => {
-    if (!places || places.length === 0) return
-    const cleanups: (() => void)[] = []
-
-    const setThumb = (cacheKey: string, thumb: string) => {
-      iconCache.clear()
-      setPhotoUrls(prev => prev[cacheKey] === thumb ? prev : { ...prev, [cacheKey]: thumb })
-    }
-
-    for (const place of places) {
-      if (place.image_url && place.image_url.startsWith('data:')) continue
-      const cacheKey = place.google_place_id || place.osm_id || `${place.lat},${place.lng}`
-      if (!cacheKey) continue
-
-      const cached = getCached(cacheKey)
-      if (cached?.thumbDataUrl) {
-        setThumb(cacheKey, cached.thumbDataUrl)
-        continue
-      }
-
-      // Subscribe for when thumb becomes available
-      cleanups.push(onThumbReady(cacheKey, thumb => setThumb(cacheKey, thumb)))
-
-      // Always fetch through API — returns fresh URL + converts to base64
-      if (!cached && !isLoading(cacheKey)) {
-        const photoId = place.google_place_id || place.osm_id
-        if (photoId || (place.lat && place.lng)) {
-          fetchPhoto(cacheKey, photoId || `coords:${place.lat}:${place.lng}`, place.lat, place.lng, place.name)
-        }
-      }
-    }
-
-    return () => cleanups.forEach(fn => fn())
-  }, [placeIds])
 
   const clusterIconCreateFunction = useCallback((cluster) => {
     const count = cluster.getChildCount()
@@ -456,8 +446,7 @@ export const MapView = memo(function MapView({
 
   const markers = useMemo(() => places.map((place) => {
     const isSelected = place.id === selectedPlaceId
-    const pck = place.google_place_id || place.osm_id || `${place.lat},${place.lng}`
-    const resolvedPhoto = (pck && photoUrls[pck]) || (place.image_url?.startsWith('data:') ? place.image_url : null) || null
+    const resolvedPhoto = place.image_url?.startsWith('data:') ? place.image_url : null
     const orderNumbers = dayOrderMap[place.id] ?? null
     const icon = createPlaceIcon({ ...place, image_url: resolvedPhoto }, orderNumbers, isSelected)
 
@@ -500,7 +489,7 @@ export const MapView = memo(function MapView({
         </Tooltip>
       </Marker>
     )
-  }), [places, selectedPlaceId, dayOrderMap, photoUrls, onMarkerClick, isTouchDevice])
+  }), [places, selectedPlaceId, dayOrderMap, onMarkerClick, isTouchDevice])
 
   return (
     <div className="relative w-full h-full">
@@ -534,9 +523,11 @@ export const MapView = memo(function MapView({
         zoom={zoom}
         zoomControl={false}
         className="w-full h-full"
-        style={{ background: '#e5e7eb' }}
+        style={{ width: '100%', height: '100%', background: '#e5e7eb' }}
       >
+        <MapSizeController leftWidth={leftWidth} rightWidth={rightWidth} mapType={mapType} />
         <TileLayer
+          key={effectiveTileUrl}
           url={effectiveTileUrl}
           attribution={effectiveAttribution}
           maxZoom={19}
