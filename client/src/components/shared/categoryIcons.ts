@@ -39,6 +39,23 @@ export const ICON_LABELS: Record<string, string> = {
   Luggage: 'Luggage', Backpack: 'Backpack', Zap: 'Adventure',
 }
 
+const EMOJI_ICON_MAP: Record<string, keyof typeof CATEGORY_ICON_MAP> = {
+  '🏨': 'BedDouble',
+  '🍽️': 'UtensilsCrossed',
+  '🍽': 'UtensilsCrossed',
+  '🏛️': 'Landmark',
+  '🏛': 'Landmark',
+  '🛍️': 'ShoppingBag',
+  '🛍': 'ShoppingBag',
+  '🚌': 'Bus',
+  '🎯': 'Activity',
+  '☕': 'Coffee',
+  '🏖️': 'Waves',
+  '🏖': 'Waves',
+  '🌲': 'TreePine',
+}
+
 export function getCategoryIcon(iconName: string | null | undefined): LucideIcon {
-  return (iconName && CATEGORY_ICON_MAP[iconName]) || MapPin
+  const normalizedIcon = iconName ? EMOJI_ICON_MAP[iconName] || iconName : null
+  return (normalizedIcon && CATEGORY_ICON_MAP[normalizedIcon]) || MapPin
 }

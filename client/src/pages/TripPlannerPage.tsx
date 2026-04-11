@@ -163,7 +163,8 @@ export default function TripPlannerPage(): React.ReactElement | null {
     try {
       await tripsApi.exportPlaces(tripId, format)
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Export failed')
+      window.location.href = `/api/trips/${tripId}/export?format=${format}`
+      toast.error(err instanceof Error ? err.message : 'Export failed; trying direct download')
     }
   }
   const { leftWidth, rightWidth, leftCollapsed, rightCollapsed, setLeftCollapsed, setRightCollapsed, startResizeLeft, startResizeRight } = useResizablePanels()
@@ -586,13 +587,13 @@ export default function TripPlannerPage(): React.ReactElement | null {
         })}
         <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}>
           <button
-            onClick={() => setExportMenuOpen(v => !v)}
-            title="Export map"
+            onClick={() => handleExport('kml')}
+            title="Export Google My Maps / Earth KML"
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '6px 12px', borderRadius: 18,
               border: '1px solid var(--border-faint)',
-              background: exportMenuOpen ? 'var(--bg-elevated)' : 'var(--bg-secondary)',
+              background: 'var(--bg-secondary)',
               color: 'var(--text-primary)',
               cursor: 'pointer',
               fontSize: 12,
@@ -603,6 +604,21 @@ export default function TripPlannerPage(): React.ReactElement | null {
           >
             <Download size={14} />
             <span className="hidden sm:inline">Export</span>
+          </button>
+          <button
+            onClick={() => setExportMenuOpen(v => !v)}
+            title="Choose export format"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 32, height: 32, marginLeft: 4,
+              borderRadius: 18,
+              border: '1px solid var(--border-faint)',
+              background: exportMenuOpen ? 'var(--bg-elevated)' : 'var(--bg-secondary)',
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              boxShadow: exportMenuOpen ? '0 8px 22px rgba(0,0,0,0.12)' : 'none',
+            }}
+          >
             <ChevronDown size={13} />
           </button>
           {exportMenuOpen && (
