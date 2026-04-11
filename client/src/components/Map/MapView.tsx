@@ -430,6 +430,7 @@ export const MapView = memo(function MapView({
   hasDayDetail = false,
 }) {
   const [mapReloadKey, setMapReloadKey] = useState(0)
+  const [basicMode, setBasicMode] = useState(false)
 
   // Dynamic padding: account for sidebars + bottom inspector + day detail panel
   const paddingOpts = useMemo(() => {
@@ -444,7 +445,8 @@ export const MapView = memo(function MapView({
 
   const [mapType, setMapType] = useState<'standard' | 'satellite'>('standard')
   const satelliteTileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-  const effectiveTileUrl = mapType === 'satellite' ? satelliteTileUrl : tileUrl
+  const fallbackTileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+  const effectiveTileUrl = basicMode ? fallbackTileUrl : mapType === 'satellite' ? satelliteTileUrl : tileUrl
   const effectiveAttribution = mapType === 'satellite'
     ? '&copy; Esri'
     : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -460,6 +462,7 @@ export const MapView = memo(function MapView({
   }, [])
 
   const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)
+  const useCluster = !isTouchDevice && !basicMode
 
   const markers = useMemo(() => places.map((place) => {
     const isSelected = place.id === selectedPlaceId
@@ -558,8 +561,32 @@ export const MapView = memo(function MapView({
         </button>
       </div>
 
+      <div style={{ position: 'absolute', top: 98, left: 12, zIndex: 1000 }}>
+        <button
+          type="button"
+          onClick={() => { setBasicMode(current => !current); setMapReloadKey(key => key + 1) }}
+          style={{
+            minWidth: 92,
+            height: 34,
+            padding: '0 12px',
+            borderRadius: 999,
+            border: '1px solid rgba(15, 23, 42, 0.08)',
+            background: basicMode ? '#111827' : 'rgba(255,255,255,0.96)',
+            color: basicMode ? 'white' : '#0f172a',
+            fontSize: 12,
+            fontWeight: 650,
+            cursor: 'pointer',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
+            backdropFilter: 'blur(8px)',
+          }}
+          title="Use a simpler map layer and markers for mobile Safari"
+        >
+          {basicMode ? 'Normal map' : 'Basic map'}
+        </button>
+      </div>
+
       <MapContainer
-        key={`${effectiveTileUrl}-${mapReloadKey}`}
+        key={`${effectiveTileUrl}-${basicMode}-${mapReloadKey}`}
         id="trek-map"
         center={center}
         zoom={zoom}
@@ -577,6 +604,14 @@ export const MapView = memo(function MapView({
           updateWhenZooming={false}
           updateWhenIdle={true}
           referrerPolicy="strict-origin-when-cross-origin"
+          eventHandlers={{
+            tileerror: () => {
+              if (!basicMode) {
+                setBasicMode(true)
+                setMapReloadKey(key => key + 1)
+              }
+            },
+          }}
         />
 
       <MapController center={center} zoom={zoom} />
@@ -586,20 +621,22 @@ export const MapView = memo(function MapView({
       <MapContextMenuHandler onContextMenu={onMapContextMenu} />
       <LocationTracker />
 
-      <MarkerClusterGroup
-        chunkedLoading
-        chunkInterval={30}
-        chunkDelay={0}
-        maxClusterRadius={30}
-        disableClusteringAtZoom={11}
-        spiderfyOnMaxZoom
-        showCoverageOnHover={false}
-        zoomToBoundsOnClick
-        animate={false}
-        iconCreateFunction={clusterIconCreateFunction}
-      >
-        {markers}
-      </MarkerClusterGroup>
+      {useCluster ? (
+        <MarkerClusterGroup
+          chunkedLoading
+          chunkInterval={30}
+          chunkDelay={0}
+          maxClusterRadius={30}
+          disableClusteringAtZoom={11}
+          spiderfyOnMaxZoom
+          showCoverageOnHover={false}
+          zoomToBoundsOnClick
+          animate={false}
+          iconCreateFunction={clusterIconCreateFunction}
+        >
+          {markers}
+        </MarkerClusterGroup>
+      ) : markers}
 
       {route && route.length > 1 && (
         <>
