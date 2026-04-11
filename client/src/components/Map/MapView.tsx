@@ -376,19 +376,34 @@ function MapSizeController({
 
   useEffect(() => {
     const invalidate = () => {
-      requestAnimationFrame(() => map.invalidateSize({ animate: false }))
+      requestAnimationFrame(() => {
+        map.invalidateSize({ animate: false })
+        const container = map.getContainer()
+        const size = map.getSize()
+        if (container.clientWidth > 0 && container.clientHeight > 0 && (size.x === 0 || size.y === 0)) {
+          map.invalidateSize({ animate: false, pan: false })
+        }
+      })
     }
 
     invalidate()
-    const timers = [120, 350, 800].map(delay => window.setTimeout(invalidate, delay))
+    const timers = [80, 180, 350, 700, 1200, 2000].map(delay => window.setTimeout(invalidate, delay))
     const observer = typeof ResizeObserver !== 'undefined'
       ? new ResizeObserver(invalidate)
       : null
     observer?.observe(map.getContainer())
+    window.addEventListener('resize', invalidate)
+    window.addEventListener('orientationchange', invalidate)
+    window.addEventListener('pageshow', invalidate)
+    document.addEventListener('visibilitychange', invalidate)
 
     return () => {
       timers.forEach(timer => window.clearTimeout(timer))
       observer?.disconnect()
+      window.removeEventListener('resize', invalidate)
+      window.removeEventListener('orientationchange', invalidate)
+      window.removeEventListener('pageshow', invalidate)
+      document.removeEventListener('visibilitychange', invalidate)
     }
   }, [map, leftWidth, rightWidth, mapType])
 
@@ -492,7 +507,7 @@ export const MapView = memo(function MapView({
   }), [places, selectedPlaceId, dayOrderMap, onMarkerClick, isTouchDevice])
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full" style={{ minHeight: 320 }}>
       <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 1000 }}>
         <button
           type="button"
@@ -523,7 +538,7 @@ export const MapView = memo(function MapView({
         zoom={zoom}
         zoomControl={false}
         className="w-full h-full"
-        style={{ width: '100%', height: '100%', background: '#e5e7eb' }}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', minHeight: 320, background: '#e5e7eb' }}
       >
         <MapSizeController leftWidth={leftWidth} rightWidth={rightWidth} mapType={mapType} />
         <TileLayer

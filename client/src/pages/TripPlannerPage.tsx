@@ -674,10 +674,10 @@ export default function TripPlannerPage(): React.ReactElement | null {
       </div>
 
       {/* Offset by navbar + tab bar (44px) */}
-      <div style={{ position: 'fixed', top: 'calc(var(--nav-h) + 44px)', left: 0, right: 0, bottom: 0, overflow: 'hidden', overscrollBehavior: 'contain' }}>
+      <div style={{ position: 'fixed', top: 'calc(var(--nav-h) + 44px)', left: 0, right: 0, bottom: 0, height: 'calc(100dvh - var(--nav-h) - 44px)', minHeight: 320, overflow: 'hidden', overscrollBehavior: 'contain' }}>
 
         {activeTab === 'plan' && (
-          <div style={{ position: 'absolute', inset: 0 }}>
+          <div style={{ position: 'absolute', inset: 0, minHeight: 320 }}>
             <MapView
               places={mapPlaces}
               dayPlaces={dayPlaces}
