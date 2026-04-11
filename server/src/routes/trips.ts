@@ -93,6 +93,24 @@ function escapeXml(value: unknown): string {
     .replace(/'/g, '&apos;');
 }
 
+function slugXmlId(value: unknown): string {
+  return String(value || 'uncategorized')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'uncategorized';
+}
+
+function hexToKmlColor(value: unknown): string {
+  const fallback = 'ff0f9ed5';
+  const hex = String(value || '').trim().replace(/^#/, '');
+  if (!/^[0-9a-f]{6}$/i.test(hex)) return fallback;
+  const rr = hex.slice(0, 2);
+  const gg = hex.slice(2, 4);
+  const bb = hex.slice(4, 6);
+  return `ff${bb}${gg}${rr}`.toLowerCase();
+}
+
 function exportCsv(places: any[]): string {
   const headers = ['name', 'address', 'latitude', 'longitude', 'category', 'notes', 'google_place_id', 'google_maps_url', 'website', 'phone'];
   const rows = places.map(place => [
@@ -111,9 +129,32 @@ function exportCsv(places: any[]): string {
 }
 
 function exportKml(trip: Trip, places: any[]): string {
-  const placemarks = places
-    .filter(place => place.lat != null && place.lng != null)
-    .map(place => {
+  const placesWithCoords = places.filter(place => place.lat != null && place.lng != null);
+  const categories = new Map<string, { name: string; color: string; places: any[] }>();
+
+  for (const place of placesWithCoords) {
+    const name = place.category_name || 'Uncategorized';
+    const key = slugXmlId(name);
+    if (!categories.has(key)) {
+      categories.set(key, { name, color: hexToKmlColor(place.category_color), places: [] });
+    }
+    categories.get(key)!.places.push(place);
+  }
+
+  const styles = Array.from(categories.entries())
+    .map(([key, category]) => `    <Style id="category-${key}">
+      <IconStyle>
+        <color>${category.color}</color>
+        <scale>1.1</scale>
+        <Icon><href>https://maps.google.com/mapfiles/kml/paddle/wht-blank.png</href></Icon>
+      </IconStyle>
+      <LabelStyle><color>${category.color}</color></LabelStyle>
+    </Style>`)
+    .join('\n');
+
+  const folders = Array.from(categories.entries())
+    .map(([key, category]) => {
+      const placemarks = category.places.map(place => {
       const description = [
         place.category_name ? `<p><strong>Category:</strong> ${escapeXml(place.category_name)}</p>` : '',
         place.address ? `<p><strong>Address:</strong> ${escapeXml(place.address)}</p>` : '',
@@ -121,11 +162,18 @@ function exportKml(trip: Trip, places: any[]): string {
         `<p><a href="${escapeXml(googleMapsUrl(place))}">Open in Google Maps</a></p>`,
       ].join('');
 
-      return `    <Placemark>
-      <name>${escapeXml(place.name)}</name>
-      <description><![CDATA[${description}]]></description>
-      <Point><coordinates>${place.lng},${place.lat},0</coordinates></Point>
-    </Placemark>`;
+        return `      <Placemark>
+        <name>${escapeXml(place.name)}</name>
+        <styleUrl>#category-${key}</styleUrl>
+        <description><![CDATA[${description}]]></description>
+        <Point><coordinates>${place.lng},${place.lat},0</coordinates></Point>
+      </Placemark>`;
+      }).join('\n');
+
+      return `    <Folder>
+      <name>${escapeXml(category.name)}</name>
+${placemarks}
+    </Folder>`;
     })
     .join('\n');
 
@@ -133,7 +181,8 @@ function exportKml(trip: Trip, places: any[]): string {
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
     <name>${escapeXml(trip.title)}</name>
-${placemarks}
+${styles}
+${folders}
   </Document>
 </kml>
 `;
