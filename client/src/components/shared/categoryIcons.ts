@@ -42,8 +42,3 @@ export const ICON_LABELS: Record<string, string> = {
 export function getCategoryIcon(iconName: string | null | undefined): LucideIcon {
   return (iconName && CATEGORY_ICON_MAP[iconName]) || MapPin
 }
-
-export function isEmojiCategoryIcon(iconName: string | null | undefined): boolean {
-  if (!iconName || CATEGORY_ICON_MAP[iconName]) return false
-  return /\p{Extended_Pictographic}/u.test(iconName)
-}

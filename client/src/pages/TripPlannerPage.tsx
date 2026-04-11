@@ -157,6 +157,15 @@ export default function TripPlannerPage(): React.ReactElement | null {
     if (tabId === 'dateien' && (!files || files.length === 0)) tripActions.loadFiles?.(tripId)
   }
 
+  const handleExport = async (format: 'csv' | 'kml' | 'geojson'): Promise<void> => {
+    setExportMenuOpen(false)
+    if (!tripId) return
+    try {
+      await tripsApi.exportPlaces(tripId, format)
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Export failed')
+    }
+  }
   const { leftWidth, rightWidth, leftCollapsed, rightCollapsed, setLeftCollapsed, setRightCollapsed, startResizeLeft, startResizeRight } = useResizablePanels()
   const { selectedPlaceId, selectedAssignmentId, setSelectedPlaceId, selectAssignment } = usePlaceSelection()
   const [showDayDetail, setShowDayDetail] = useState<Day | null>(null)
@@ -616,11 +625,9 @@ export default function TripPlannerPage(): React.ReactElement | null {
                 { id: 'csv' as const, label: 'Spreadsheet (.csv)', hint: 'Includes notes and Google links' },
                 { id: 'geojson' as const, label: 'GeoJSON (.geojson)', hint: 'For web maps and developers' },
               ].map(item => (
-                <a
+                <button
                   key={item.id}
-                  href={`/api/trips/${tripId}/export?format=${item.id}`}
-                  download
-                  onClick={() => setExportMenuOpen(false)}
+                  onClick={() => handleExport(item.id)}
                   style={{
                     width: '100%',
                     display: 'block',
@@ -632,14 +639,13 @@ export default function TripPlannerPage(): React.ReactElement | null {
                     padding: '9px 10px',
                     cursor: 'pointer',
                     fontFamily: 'inherit',
-                    textDecoration: 'none',
                   }}
                   onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-secondary)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                 >
                   <div style={{ fontSize: 13, fontWeight: 600 }}>{item.label}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{item.hint}</div>
-                </a>
+                </button>
               ))}
             </div>
           )}

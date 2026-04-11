@@ -7,22 +7,9 @@ import L from 'leaflet'
 import 'leaflet.markercluster/dist/MarkerCluster.css'
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 import { mapsApi } from '../../api/client'
-import { CATEGORY_ICON_MAP, isEmojiCategoryIcon } from '../shared/categoryIcons'
+import { getCategoryIcon, CATEGORY_ICON_MAP } from '../shared/categoryIcons'
 
 function categoryIconSvg(iconName: string | null | undefined, size: number): string {
-  if (isEmojiCategoryIcon(iconName)) {
-    return renderToStaticMarkup(createElement('span', {
-      style: {
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: `${Math.round(size * 0.8)}px`,
-        lineHeight: 1,
-        width: `${size}px`,
-        height: `${size}px`,
-      },
-    }, iconName))
-  }
   const IconComponent = (iconName && CATEGORY_ICON_MAP[iconName]) || CATEGORY_ICON_MAP['MapPin']
   try {
     return renderToStaticMarkup(createElement(IconComponent, { size, color: 'white', strokeWidth: 2.5 }))
