@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Copy, Crosshair, ExternalLink, Flag, MapPin, Navigation, Sparkles, Tag as TagIcon } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Compass, Copy, Crosshair, ExternalLink, Flag, MapPin, Navigation, Sparkles, Tag as TagIcon } from 'lucide-react'
 import PlaceAvatar from '../shared/PlaceAvatar'
 import type { Assignment, AssignmentsMap, Day, Place, Tag } from '../../types'
 
@@ -148,7 +148,22 @@ export default function FinalizationPanel({
     return { day, assignments: dayAssignments, totalKm, untimed, status }
   }), [assignments, days])
 
-  const unplanned = places.filter(place => !assignedPlaceIds.has(place.id))
+  const unplanned = useMemo(() => places.filter(place => !assignedPlaceIds.has(place.id)), [assignedPlaceIds, places])
+  const dayNearbyCandidates = useMemo(() => dayStats.map(({ day, assignments: dayAssignments }) => {
+    const anchors = dayAssignments.map(a => a.place).filter(place => place.lat != null && place.lng != null)
+    const candidates = unplanned
+      .filter(place => place.lat != null && place.lng != null)
+      .map(place => ({
+        place,
+        km: anchors.length
+          ? Math.min(...anchors.map(anchor => distanceKm(anchor, place)))
+          : Number.POSITIVE_INFINITY,
+      }))
+      .filter(item => Number.isFinite(item.km))
+      .sort((a, b) => a.km - b.km)
+      .slice(0, 4)
+    return { day, candidates }
+  }), [dayStats, unplanned])
   const missingCoords = places.filter(place => place.lat == null || place.lng == null)
   const missingNotes = places.filter(place => !place.notes || !place.notes.trim())
   const noPriority = places.filter(place => !PRIORITY_TAGS.some(tag => hasTag(place, tag.name)))
@@ -235,6 +250,54 @@ export default function FinalizationPanel({
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{item.detail}</div>
                 </div>
                 {item.done ? <CheckCircle2 size={18} color="#22c55e" /> : <AlertTriangle size={18} color="#f59e0b" />}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section style={sectionStyle()}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <Compass size={18} color="var(--accent)" />
+            <h2 style={{ margin: 0, fontSize: 18, color: 'var(--text-primary)' }}>Nearby add-ons</h2>
+          </div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 10 }}>
+            Unplanned saved places that are closest to each day&apos;s current route.
+          </div>
+          <div style={{ display: 'grid', gap: 8, maxHeight: 440, overflowY: 'auto', paddingRight: 4 }}>
+            {dayNearbyCandidates.map(({ day, candidates }, dayIndex) => (
+              <div key={day.id} style={cardStyle()}>
+                <div style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+                  {day.title || `Day ${dayIndex + 1}`}
+                </div>
+                {candidates.length === 0 ? (
+                  <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Add stops to this day first, then nearby ideas will appear.</div>
+                ) : (
+                  <div style={{ display: 'grid', gap: 7 }}>
+                    {candidates.map(({ place, km }) => (
+                      <button
+                        key={`${day.id}-${place.id}`}
+                        onClick={() => onPlaceClick(place.id)}
+                        style={{
+                          border: 'none',
+                          background: 'transparent',
+                          padding: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          color: 'inherit',
+                        }}
+                      >
+                        <PlaceAvatar place={place} category={place.category || undefined} size={26} />
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ color: 'var(--text-primary)', fontSize: 12, fontWeight: 650, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{place.name}</div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>{formatKm(km)} from this day&apos;s route</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
