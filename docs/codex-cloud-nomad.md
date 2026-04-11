@@ -33,7 +33,7 @@ Start a Codex Cloud task with:
 
 ```text
 Use scripts/nomadctl.mjs to verify live NOMAD access. Run:
-node scripts/nomadctl.mjs summary
+node scripts/nomadctl.mjs doctor
 Do not modify any data. Report the trip title, place count, missing notes count, missing Google place ID count, and image count.
 ```
 
@@ -43,6 +43,7 @@ Expected result for the NYC trip should be a summary for `NYC w Dad`.
 
 ```bash
 node scripts/nomadctl.mjs health
+node scripts/nomadctl.mjs doctor
 node scripts/nomadctl.mjs trips
 node scripts/nomadctl.mjs summary
 node scripts/nomadctl.mjs places --trip 1
@@ -94,6 +95,18 @@ Use scripts/nomadctl.mjs against the live NOMAD trip. Before creating anything, 
 ```
 
 Avoid prompts that say only "add these" without asking for dedupe and verification.
+
+## Troubleshooting Codex Cloud
+
+If `summary` prints `fetch failed`, run:
+
+```bash
+node scripts/nomadctl.mjs doctor
+```
+
+If `doctor` fails on `health`, the Cloud task cannot reach the Railway app. Enable agent internet access and allow `https://nomad-production-a78e.up.railway.app`.
+
+If `doctor` passes `health` but fails `login`, verify `NOMAD_EMAIL` and `NOMAD_PASSWORD` are runtime environment variables in the same Codex Cloud environment used by the task.
 
 ## Cleanup Commands
 

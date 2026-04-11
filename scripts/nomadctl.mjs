@@ -25,6 +25,7 @@ function usage() {
 
 Usage:
   node scripts/nomadctl.mjs health
+  node scripts/nomadctl.mjs doctor
   node scripts/nomadctl.mjs trips
   node scripts/nomadctl.mjs places [--trip 1]
   node scripts/nomadctl.mjs summary [--trip 1]
@@ -94,14 +95,29 @@ function normalizeName(value) {
 
 async function request(pathname, options = {}) {
   const baseUrl = normalizeBaseUrl(process.env.NOMAD_BASE_URL);
-  const response = await fetch(`${baseUrl}${pathname}`, {
-    ...options,
-    headers: {
-      Accept: 'application/json',
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(options.headers || {}),
-    },
-  });
+  const url = `${baseUrl}${pathname}`;
+  let response;
+
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers: {
+        Accept: 'application/json',
+        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(options.headers || {}),
+      },
+    });
+  } catch (error) {
+    const cause = error?.cause;
+    const details = [
+      `Network request failed: ${options.method || 'GET'} ${url}`,
+      `Error: ${error.message}`,
+      cause?.code ? `Cause code: ${cause.code}` : null,
+      cause?.message ? `Cause message: ${cause.message}` : null,
+      'If this happens in Codex Cloud, enable agent internet access and allow the NOMAD_BASE_URL domain.',
+    ].filter(Boolean);
+    throw new Error(details.join('\n'));
+  }
 
   const text = await response.text();
   let data = null;
@@ -119,6 +135,49 @@ async function request(pathname, options = {}) {
   }
 
   return data;
+}
+
+async function doctor() {
+  const baseUrl = normalizeBaseUrl(process.env.NOMAD_BASE_URL);
+  const env = {
+    baseUrl,
+    tripId: DEFAULT_TRIP_ID,
+    hasEmail: Boolean(process.env.NOMAD_EMAIL),
+    hasPassword: Boolean(process.env.NOMAD_PASSWORD),
+    hasJwt: Boolean(process.env.NOMAD_JWT),
+  };
+
+  const checks = [];
+
+  async function check(name, fn) {
+    try {
+      const result = await fn();
+      checks.push({ name, ok: true, result });
+    } catch (error) {
+      checks.push({ name, ok: false, error: error.message });
+    }
+  }
+
+  await check('health', () => request('/api/health'));
+
+  if (env.hasJwt || (env.hasEmail && env.hasPassword)) {
+    await check('login', async () => {
+      const token = await getJwt();
+      return { ok: Boolean(token), tokenPrefix: token ? `${token.slice(0, 8)}...` : null };
+    });
+    await check('summary', async () => {
+      const [trip, places] = await Promise.all([getTrip(DEFAULT_TRIP_ID), listPlaces(DEFAULT_TRIP_ID)]);
+      return {
+        tripTitle: trip?.title,
+        placeCount: places.length,
+        withoutNotes: places.filter((p) => !p.notes || !String(p.notes).trim()).length,
+        withoutGooglePlaceId: places.filter((p) => !p.google_place_id).length,
+        withImages: places.filter((p) => p.image_url).length,
+      };
+    });
+  }
+
+  return { env, checks };
 }
 
 let cachedToken = null;
@@ -281,6 +340,11 @@ async function main() {
 
   if (command === 'health') {
     console.log(JSON.stringify(await request('/api/health'), null, 2));
+    return;
+  }
+
+  if (command === 'doctor') {
+    console.log(JSON.stringify(await doctor(), null, 2));
     return;
   }
 
