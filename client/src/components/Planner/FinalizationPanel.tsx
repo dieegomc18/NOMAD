@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Crosshair, Flag, MapPin, Navigation, Sparkles, Tag as TagIcon } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Copy, Crosshair, ExternalLink, Flag, MapPin, Navigation, Sparkles, Tag as TagIcon } from 'lucide-react'
 import PlaceAvatar from '../shared/PlaceAvatar'
 import type { Assignment, AssignmentsMap, Day, Place, Tag } from '../../types'
 
@@ -57,6 +57,42 @@ function getPlaceTags(place: Place): Tag[] {
   return place.tags || []
 }
 
+function getGoogleMapsRouteUrl(assignments: Array<Assignment & { place: Place }>): string {
+  const stops = assignments
+    .map(assignment => assignment.place)
+    .filter(place => place.lat != null && place.lng != null)
+
+  if (stops.length === 0) return 'https://www.google.com/maps'
+  if (stops.length === 1) {
+    const stop = stops[0]
+    return `https://www.google.com/maps/search/?api=1&query=${stop.lat},${stop.lng}`
+  }
+
+  const origin = stops[0]
+  const destination = stops[stops.length - 1]
+  const waypoints = stops.slice(1, -1).slice(0, 9)
+  const params = new URLSearchParams({
+    api: '1',
+    travelmode: 'walking',
+    origin: `${origin.lat},${origin.lng}`,
+    destination: `${destination.lat},${destination.lng}`,
+  })
+  if (waypoints.length > 0) params.set('waypoints', waypoints.map(place => `${place.lat},${place.lng}`).join('|'))
+  return `https://www.google.com/maps/dir/?${params.toString()}`
+}
+
+function getStopListText(day: Day, dayIndex: number, assignments: Array<Assignment & { place: Place }>): string {
+  const title = day.title || `Day ${dayIndex + 1}`
+  const date = day.date ? ` (${day.date})` : ''
+  const stops = assignments.map((assignment, index) => {
+    const place = assignment.place
+    const time = place.place_time ? `${place.place_time}${place.end_time ? `-${place.end_time}` : ''} ` : ''
+    const address = place.address ? ` - ${place.address}` : ''
+    return `${index + 1}. ${time}${place.name}${address}`
+  })
+  return [`${title}${date}`, ...stops].join('\n')
+}
+
 function sectionStyle(): React.CSSProperties {
   return {
     background: 'var(--bg-card)',
@@ -88,6 +124,7 @@ export default function FinalizationPanel({
   const [nearbyOrigin, setNearbyOrigin] = useState<{ lat: number; lng: number } | null>(null)
   const [nearbyError, setNearbyError] = useState<string | null>(null)
   const [taggingPlaceId, setTaggingPlaceId] = useState<number | null>(null)
+  const [copiedDayId, setCopiedDayId] = useState<number | null>(null)
 
   const assignedPlaceIds = useMemo(() => new Set(
     Object.values(assignments).flatMap(dayAssignments => dayAssignments.map(a => a.place?.id).filter(Boolean))
@@ -148,6 +185,13 @@ export default function FinalizationPanel({
     )
   }
 
+  const copyDayStops = async (day: Day, dayIndex: number, dayAssignments: Array<Assignment & { place: Place }>) => {
+    if (!navigator.clipboard) return
+    await navigator.clipboard.writeText(getStopListText(day, dayIndex, dayAssignments))
+    setCopiedDayId(day.id)
+    window.setTimeout(() => setCopiedDayId(current => current === day.id ? null : current), 1800)
+  }
+
   const ensureTag = async (name: string, color: string) => {
     const existing = tags.find(tag => tag.name.toLowerCase() === name.toLowerCase())
     return existing || onCreateTag({ name, color })
@@ -202,7 +246,7 @@ export default function FinalizationPanel({
             <h2 style={{ margin: 0, fontSize: 18, color: 'var(--text-primary)' }}>Route sanity</h2>
           </div>
           <div style={{ display: 'grid', gap: 8 }}>
-            {dayStats.map(({ day, assignments: dayAssignments, totalKm, untimed, status }) => (
+            {dayStats.map(({ day, assignments: dayAssignments, totalKm, untimed, status }, dayIndex) => (
               <div key={day.id} style={cardStyle()}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
                   <strong style={{ color: 'var(--text-primary)', fontSize: 13 }}>{day.title || `Day ${days.indexOf(day) + 1}`}</strong>
@@ -211,6 +255,49 @@ export default function FinalizationPanel({
                 <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 5 }}>
                   {dayAssignments.length} stops, {formatKm(totalKm)} straight-line movement, {untimed} untimed
                 </div>
+                {dayAssignments.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                    <a
+                      href={getGoogleMapsRouteUrl(dayAssignments)}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        border: '1px solid var(--border-primary)',
+                        borderRadius: 999,
+                        padding: '5px 9px',
+                        color: 'var(--text-primary)',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        textDecoration: 'none',
+                      }}
+                    >
+                      <ExternalLink size={12} />
+                      Open route
+                    </a>
+                    <button
+                      onClick={() => copyDayStops(day, dayIndex, dayAssignments)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        border: '1px solid var(--border-primary)',
+                        borderRadius: 999,
+                        padding: '5px 9px',
+                        background: 'transparent',
+                        color: 'var(--text-primary)',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Copy size={12} />
+                      {copiedDayId === day.id ? 'Copied' : 'Copy stops'}
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
