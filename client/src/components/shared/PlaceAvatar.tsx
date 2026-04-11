@@ -1,5 +1,5 @@
 import React from 'react'
-import { getCategoryIcon } from './categoryIcons'
+import { getCategoryIcon, isEmojiCategoryIcon } from './categoryIcons'
 import type { Place } from '../../types'
 
 interface Category {
@@ -15,6 +15,7 @@ interface PlaceAvatarProps {
 
 export default React.memo(function PlaceAvatar({ place, size = 32, category }: PlaceAvatarProps) {
   const bgColor = category?.color || '#6366f1'
+  const emojiIcon = isEmojiCategoryIcon(category?.icon) ? category?.icon : null
   const IconComp = getCategoryIcon(category?.icon)
   const iconSize = Math.round(size * 0.46)
 
@@ -45,7 +46,11 @@ export default React.memo(function PlaceAvatar({ place, size = 32, category }: P
 
   return (
     <div style={containerStyle}>
-      <IconComp size={iconSize} strokeWidth={1.8} color="rgba(255,255,255,0.92)" />
+      {emojiIcon ? (
+        <span style={{ fontSize: Math.round(size * 0.48), lineHeight: 1 }}>{emojiIcon}</span>
+      ) : (
+        <IconComp size={iconSize} strokeWidth={1.8} color="rgba(255,255,255,0.92)" />
+      )}
     </div>
   )
 })
