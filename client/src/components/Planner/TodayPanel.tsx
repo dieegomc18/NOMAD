@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react'
-import { AlertTriangle, CalendarCheck2, CheckCircle2, Clock, Copy, ExternalLink, MapPin, Navigation, Route, TimerReset } from 'lucide-react'
+import React, { useEffect, useMemo, useState } from 'react'
+import { AlertTriangle, CalendarCheck2, CheckCircle2, Clock, Copy, ExternalLink, Route, TimerReset } from 'lucide-react'
+import { mapsApi } from '../../api/client'
 import PlaceAvatar from '../shared/PlaceAvatar'
 import type { Assignment, AssignmentsMap, Day, Place, Reservation } from '../../types'
 
@@ -31,12 +32,61 @@ type Conflict = {
   assignmentId?: number
 }
 
+type PlaceDetails = {
+  opening_hours?: string[] | null
+  open_now?: boolean | null
+  google_maps_url?: string | null
+}
+
 function parseTimeToMinutes(value?: string | null): number | null {
   if (!value) return null
   const time = value.includes('T') ? value.split('T')[1] : value
   const parts = time.split(':').map(Number)
   if (parts.length >= 2 && !Number.isNaN(parts[0]) && !Number.isNaN(parts[1])) return parts[0] * 60 + parts[1]
   return null
+}
+
+function getWeekdayIndex(dateStr?: string | null): number {
+  const date = dateStr ? new Date(`${dateStr}T12:00:00`) : new Date()
+  const day = date.getDay()
+  return day === 0 ? 6 : day - 1
+}
+
+function parseHoursTime(value: string): number | null {
+  const normalized = value.trim().replace(/\./g, '').toUpperCase()
+  const match = normalized.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?/)
+  if (!match) return null
+  let hours = Number(match[1])
+  const minutes = Number(match[2] || 0)
+  const period = match[3]
+  if (period === 'PM' && hours !== 12) hours += 12
+  if (period === 'AM' && hours === 12) hours = 0
+  if (hours > 24 || minutes > 59) return null
+  return hours * 60 + minutes
+}
+
+function parseOpeningIntervals(line?: string | null): Array<{ start: number; end: number }> | null {
+  if (!line) return null
+  const afterColon = line.includes(':') ? line.slice(line.indexOf(':') + 1).trim() : line.trim()
+  if (!afterColon || /\bclosed\b/i.test(afterColon)) return []
+  if (/24\s*hours|open\s*24/i.test(afterColon)) return [{ start: 0, end: 24 * 60 }]
+  const dashNormalized = afterColon.replace(/[–—]/g, '-')
+  const intervals = dashNormalized.split(',').flatMap(part => {
+    const [rawStart, rawEnd] = part.split('-').map(piece => piece?.trim())
+    if (!rawStart || !rawEnd) return []
+    const endHasPeriod = /\b(AM|PM)\b/i.test(rawEnd)
+    const startText = /\b(AM|PM)\b/i.test(rawStart) || !endHasPeriod ? rawStart : `${rawStart} ${rawEnd.match(/\b(AM|PM)\b/i)?.[1] || ''}`
+    const start = parseHoursTime(startText)
+    let end = parseHoursTime(rawEnd)
+    if (start == null || end == null) return []
+    if (end <= start) end += 24 * 60
+    return [{ start, end }]
+  })
+  return intervals.length ? intervals : null
+}
+
+function isWithinOpeningHours(visitTime: number, intervals: Array<{ start: number; end: number }>): boolean {
+  return intervals.some(interval => visitTime >= interval.start && visitTime <= interval.end)
 }
 
 function formatMinutes(value: number): string {
@@ -184,6 +234,39 @@ function getConflicts(days: Day[], assignments: AssignmentsMap, reservations: Re
   })
 }
 
+function getOpeningHourConflicts(day: Day, dayAssignments: Array<Assignment & { place: Place }>, placeDetails: Record<number, PlaceDetails>): Conflict[] {
+  return dayAssignments.flatMap(assignment => {
+    const details = placeDetails[assignment.place.id]
+    const todayLine = details?.opening_hours?.[getWeekdayIndex(day.date)]
+    if (!todayLine) return []
+    const intervals = parseOpeningIntervals(todayLine)
+    if (!intervals) return []
+    if (intervals.length === 0) {
+      return [{
+        dayId: day.id,
+        severity: 'warning' as const,
+        title: 'Likely closed',
+        detail: `${assignment.place.name} is listed as closed on ${formatDayDate(day)}.`,
+        placeId: assignment.place.id,
+        assignmentId: assignment.id,
+      }]
+    }
+
+    const visitTime = parseTimeToMinutes(assignment.place.place_time)
+    if (visitTime == null) return []
+    if (isWithinOpeningHours(visitTime, intervals)) return []
+
+    return [{
+      dayId: day.id,
+      severity: 'warning' as const,
+      title: 'Outside Google hours',
+      detail: `${assignment.place.name} is planned at ${formatMinutes(visitTime)}, but Google lists: ${todayLine}.`,
+      placeId: assignment.place.id,
+      assignmentId: assignment.id,
+    }]
+  })
+}
+
 function cardStyle(): React.CSSProperties {
   return {
     border: '1px solid var(--border-faint)',
@@ -198,13 +281,48 @@ export default function TodayPanel({ days, assignments, reservations, onOpenPlac
   const defaultDay = days.find(day => day.date === todayIso) || days.find(day => day.date > todayIso) || days[0]
   const [activeDayId, setActiveDayId] = useState<number | null>(defaultDay?.id || null)
   const [copied, setCopied] = useState(false)
+  const [placeDetails, setPlaceDetails] = useState<Record<number, PlaceDetails>>({})
+  const [detailsLoading, setDetailsLoading] = useState(false)
 
   const activeDay = days.find(day => day.id === activeDayId) || defaultDay
-  const dayAssignments = activeDay ? getDayAssignments(assignments, activeDay.id) : []
-  const dayReservations = activeDay ? getReservationsForDay(activeDay, reservations, dayAssignments) : []
-  const timedItems = activeDay ? buildTimedItems(activeDay, dayAssignments, dayReservations) : []
+  const dayAssignments = useMemo(() => activeDay ? getDayAssignments(assignments, activeDay.id) : [], [activeDay?.id, assignments])
+  const dayReservations = useMemo(() => activeDay ? getReservationsForDay(activeDay, reservations, dayAssignments) : [], [activeDay, dayAssignments, reservations])
+  const timedItems = useMemo(() => activeDay ? buildTimedItems(activeDay, dayAssignments, dayReservations) : [], [activeDay, dayAssignments, dayReservations])
   const conflicts = useMemo(() => getConflicts(days, assignments, reservations), [assignments, days, reservations])
-  const activeConflicts = activeDay ? conflicts.filter(conflict => conflict.dayId === activeDay.id) : []
+  const openingConflicts = activeDay ? getOpeningHourConflicts(activeDay, dayAssignments, placeDetails) : []
+  const activeConflicts = activeDay ? [...conflicts.filter(conflict => conflict.dayId === activeDay.id), ...openingConflicts] : []
+
+  useEffect(() => {
+    let cancelled = false
+    const loadDetails = async () => {
+      if (!activeDay) return
+      const targets = dayAssignments.filter(assignment => {
+        const detailId = assignment.place.google_place_id || assignment.place.osm_id
+        return detailId && !placeDetails[assignment.place.id]
+      })
+      if (targets.length === 0) return
+      setDetailsLoading(true)
+      try {
+        const results = await Promise.allSettled(targets.map(async assignment => {
+          const detailId = assignment.place.google_place_id || assignment.place.osm_id
+          const data = await mapsApi.details(String(detailId), 'en')
+          return [assignment.place.id, data.place || {}] as const
+        }))
+        if (cancelled) return
+        setPlaceDetails(current => {
+          const next = { ...current }
+          for (const result of results) {
+            if (result.status === 'fulfilled') next[result.value[0]] = result.value[1]
+          }
+          return next
+        })
+      } finally {
+        if (!cancelled) setDetailsLoading(false)
+      }
+    }
+    loadDetails()
+    return () => { cancelled = true }
+  }, [activeDay?.id, dayAssignments])
 
   const openDay = (dayId: number) => {
     setActiveDayId(dayId)
@@ -295,7 +413,14 @@ export default function TodayPanel({ days, assignments, reservations, onOpenPlac
                     <div style={{ color: 'var(--text-primary)', fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{assignment.place.name}</div>
                     <div style={{ color: 'var(--text-muted)', fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{assignment.place.address || 'No address'}</div>
                   </div>
-                  {assignment.place.place_time && <span style={{ color: 'var(--text-muted)', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Clock size={12} />{assignment.place.place_time}</span>}
+                  <div style={{ display: 'grid', gap: 4, justifyItems: 'end' }}>
+                    {assignment.place.place_time && <span style={{ color: 'var(--text-muted)', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Clock size={12} />{assignment.place.place_time}</span>}
+                    {placeDetails[assignment.place.id]?.opening_hours?.[getWeekdayIndex(activeDay.date)] && (
+                      <span style={{ color: 'var(--text-faint)', fontSize: 10, maxWidth: 190, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        Google: {placeDetails[assignment.place.id]?.opening_hours?.[getWeekdayIndex(activeDay.date)]?.replace(/^[^:]+:\s*/, '')}
+                      </span>
+                    )}
+                  </div>
                 </button>
               ))}
             </div>
@@ -306,10 +431,11 @@ export default function TodayPanel({ days, assignments, reservations, onOpenPlac
               <AlertTriangle size={18} color={activeConflicts.some(c => c.severity === 'warning') ? '#f97316' : '#22c55e'} />
               <h2 style={{ margin: 0, color: 'var(--text-primary)', fontSize: 18 }}>Conflict warnings</h2>
             </div>
+            {detailsLoading && <div style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 10 }}>Checking Google opening hours for this day...</div>}
             {activeConflicts.length === 0 ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)', fontSize: 13 }}>
                 <CheckCircle2 size={16} color="#22c55e" />
-                No obvious timing or route conflicts for this day.
+                No obvious timing, route, or Google-hours conflicts for this day.
               </div>
             ) : (
               <div style={{ display: 'grid', gap: 8 }}>
