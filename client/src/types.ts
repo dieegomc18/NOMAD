@@ -56,6 +56,13 @@ export interface Place {
   place_time: string | null
   end_time: string | null
   created_at: string
+  tags?: Tag[]
+  category?: Category | null
+  category_name?: string | null
+  category_color?: string | null
+  category_icon?: string | null
+  duration_minutes?: number | null
+  notes?: string | null
 }
 
 export interface Assignment {
@@ -110,6 +117,7 @@ export interface Category {
   id: number
   name: string
   icon: string | null
+  color?: string | null
   user_id: number
 }
 
