@@ -82,6 +82,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
   const assignments = useTripStore(s => s.assignments)
   const packingItems = useTripStore(s => s.packingItems)
   const todoItems = useTripStore(s => s.todoItems)
+  const tags = useTripStore(s => s.tags)
   const categories = useTripStore(s => s.categories)
   const reservations = useTripStore(s => s.reservations)
   const budgetItems = useTripStore(s => s.budgetItems)
