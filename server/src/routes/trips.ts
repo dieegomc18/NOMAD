@@ -111,6 +111,29 @@ function hexToKmlColor(value: unknown): string {
   return `ff${bb}${gg}${rr}`.toLowerCase();
 }
 
+function kmlIconHref(categoryName: unknown, categoryColor: unknown): string {
+  const normalizedName = String(categoryName || '').toLowerCase();
+  const color = String(categoryColor || '').toLowerCase();
+
+  const iconColor =
+    normalizedName.includes('restaurant') ? 'red' :
+    normalizedName.includes('bar') || normalizedName.includes('cafe') ? 'orange' :
+    normalizedName.includes('shopping') ? 'ylw' :
+    normalizedName.includes('attraction') ? 'purple' :
+    normalizedName.includes('transport') ? 'blu' :
+    normalizedName.includes('hotel') ? 'ltblu' :
+    normalizedName.includes('nature') ? 'grn' :
+    normalizedName.includes('beach') ? 'ltblu' :
+    color.startsWith('#ef') ? 'red' :
+    color.startsWith('#f9') ? 'ylw' :
+    color.startsWith('#f973') ? 'orange' :
+    color.startsWith('#8b') ? 'purple' :
+    color.startsWith('#22') || color.startsWith('#10') ? 'grn' :
+    'blu';
+
+  return `https://maps.google.com/mapfiles/kml/paddle/${iconColor}-circle.png`;
+}
+
 function exportCsv(places: any[]): string {
   const headers = ['name', 'address', 'latitude', 'longitude', 'category', 'notes', 'google_place_id', 'google_maps_url', 'website', 'phone'];
   const rows = places.map(place => [
@@ -130,13 +153,18 @@ function exportCsv(places: any[]): string {
 
 function exportKml(trip: Trip, places: any[]): string {
   const placesWithCoords = places.filter(place => place.lat != null && place.lng != null);
-  const categories = new Map<string, { name: string; color: string; places: any[] }>();
+  const categories = new Map<string, { name: string; color: string; iconHref: string; places: any[] }>();
 
   for (const place of placesWithCoords) {
     const name = place.category_name || 'Uncategorized';
     const key = slugXmlId(name);
     if (!categories.has(key)) {
-      categories.set(key, { name, color: hexToKmlColor(place.category_color), places: [] });
+      categories.set(key, {
+        name,
+        color: hexToKmlColor(place.category_color),
+        iconHref: kmlIconHref(name, place.category_color),
+        places: [],
+      });
     }
     categories.get(key)!.places.push(place);
   }
@@ -146,7 +174,8 @@ function exportKml(trip: Trip, places: any[]): string {
       <IconStyle>
         <color>${category.color}</color>
         <scale>1.1</scale>
-        <Icon><href>https://maps.google.com/mapfiles/kml/paddle/wht-blank.png</href></Icon>
+        <Icon><href>${category.iconHref}</href></Icon>
+        <hotSpot x="32" y="1" xunits="pixels" yunits="pixels" />
       </IconStyle>
       <LabelStyle><color>${category.color}</color></LabelStyle>
     </Style>`)
