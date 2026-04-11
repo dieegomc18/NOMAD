@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { getAuthUrl } from '../../api/authUrl'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { X, Clock, MapPin, ExternalLink, Phone, Euro, Edit2, Trash2, Plus, Minus, ChevronDown, ChevronUp, FileText, Upload, File, FileImage, Star, Navigation, Users, Mountain, TrendingUp } from 'lucide-react'
+import { X, Clock, MapPin, ExternalLink, Phone, Euro, Edit2, Trash2, Minus, ChevronDown, ChevronUp, FileText, Upload, File, FileImage, Star, Navigation, Users, Mountain, TrendingUp, CalendarPlus, GripVertical } from 'lucide-react'
 import PlaceAvatar from '../shared/PlaceAvatar'
 import { mapsApi } from '../../api/client'
 import { useSettingsStore } from '../../store/settingsStore'
@@ -116,7 +116,7 @@ interface PlaceInspectorProps {
   onClose: () => void
   onEdit: () => void
   onDelete: () => void
-  onAssignToDay: (placeId: number, dayId: number) => void
+  onAssignToDay: (placeId: number, dayId?: number) => void
   onRemoveAssignment: (assignmentId: number, dayId: number) => void
   files: TripFile[]
   onFileUpload?: (fd: FormData) => Promise<void>
@@ -140,6 +140,8 @@ export default function PlaceInspector({
   const [isUploading, setIsUploading] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [nameValue, setNameValue] = useState('')
+  const [dayMenuOpen, setDayMenuOpen] = useState(false)
+  const [isDraggingPlace, setIsDraggingPlace] = useState(false)
   const nameInputRef = useRef(null)
   const fileInputRef = useRef(null)
   const googleDetails = usePlaceDetails(place?.google_place_id, place?.osm_id, language)
@@ -169,6 +171,11 @@ export default function PlaceInspector({
   const category = categories?.find(c => c.id === place.category_id)
   const dayAssignments = selectedDayId ? (assignments[String(selectedDayId)] || []) : []
   const assignmentInDay = selectedDayId ? dayAssignments.find(a => a.place?.id === place.id) : null
+  const assignedDayIds = useMemo(() => new Set(
+    Object.entries(assignments)
+      .filter(([, dayItems]) => dayItems.some(a => a.place?.id === place.id))
+      .map(([dayId]) => Number(dayId))
+  ), [assignments, place.id])
 
   const openingHours = googleDetails?.opening_hours || null
   const openNow = googleDetails?.open_now ?? null
@@ -197,6 +204,23 @@ export default function PlaceInspector({
     }
   }, [onFileUpload, place.id])
 
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData('placeId', String(place.id))
+    e.dataTransfer.effectAllowed = 'copy'
+    window.__dragData = { placeId: String(place.id) }
+    setIsDraggingPlace(true)
+  }
+
+  const handleDragEnd = () => {
+    window.__dragData = null
+    setIsDraggingPlace(false)
+  }
+
+  const assignToSpecificDay = (dayId: number) => {
+    onAssignToDay(place.id, dayId)
+    setDayMenuOpen(false)
+  }
+
   return (
     <div
       style={{
@@ -219,16 +243,40 @@ export default function PlaceInspector({
         maxHeight: '60vh',
         display: 'flex',
         flexDirection: 'column',
+        opacity: isDraggingPlace ? 0.72 : 1,
       }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: openNow !== null ? 26 : 14, padding: openNow !== null ? '18px 16px 14px 28px' : '18px 16px 14px', borderBottom: '1px solid var(--border-faint)' }}>
           {/* Avatar with open/closed ring + tag */}
-          <div style={{ position: 'relative', flexShrink: 0, marginBottom: openNow !== null ? 8 : 0 }}>
+          <div
+            draggable
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            title="Drag this place onto a day"
+            style={{ position: 'relative', flexShrink: 0, marginBottom: openNow !== null ? 8 : 0, cursor: 'grab' }}
+          >
             <div style={{
               borderRadius: '50%', padding: 2.5,
               background: openNow === true ? '#22c55e' : openNow === false ? '#ef4444' : 'transparent',
             }}>
               <PlaceAvatar place={place} category={category} size={52} />
+            </div>
+            <div style={{
+              position: 'absolute',
+              right: -8,
+              top: -4,
+              width: 18,
+              height: 18,
+              borderRadius: '50%',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-faint)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--text-faint)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+            }}>
+              <GripVertical size={11} />
             </div>
             {openNow !== null && (
               <span style={{
@@ -605,13 +653,57 @@ export default function PlaceInspector({
 
         {/* Footer actions */}
         <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border-faint)', display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-          {selectedDayId && (
-            assignmentInDay ? (
+          <div style={{ position: 'relative' }}>
+            <ActionButton onClick={() => setDayMenuOpen(v => !v)} variant="primary" icon={<CalendarPlus size={13} />} label="Add to..." />
+            {dayMenuOpen && (
+              <div style={{
+                position: 'absolute',
+                left: 0,
+                bottom: 'calc(100% + 8px)',
+                minWidth: 220,
+                maxHeight: 260,
+                overflowY: 'auto',
+                padding: 6,
+                borderRadius: 14,
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border-faint)',
+                boxShadow: '0 18px 48px rgba(0,0,0,0.22)',
+                zIndex: 3,
+              }}>
+                {days.map((day, index) => {
+                  const alreadyAssigned = assignedDayIds.has(day.id)
+                  return (
+                    <button
+                      key={day.id}
+                      onClick={() => assignToSpecificDay(day.id)}
+                      disabled={alreadyAssigned}
+                      style={{
+                        width: '100%',
+                        border: 'none',
+                        borderRadius: 10,
+                        background: selectedDayId === day.id ? 'var(--bg-hover)' : 'transparent',
+                        color: alreadyAssigned ? 'var(--text-faint)' : 'var(--text-primary)',
+                        cursor: alreadyAssigned ? 'default' : 'pointer',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                        padding: '8px 10px',
+                        fontFamily: 'inherit',
+                        fontSize: 12,
+                        textAlign: 'left',
+                      }}
+                    >
+                      <span>{day.title || `Day ${index + 1}`}</span>
+                      <span style={{ color: 'var(--text-faint)' }}>{alreadyAssigned ? 'Added' : new Date(`${day.date}T12:00:00`).toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+          {selectedDayId && assignmentInDay && (
               <ActionButton onClick={() => onRemoveAssignment(selectedDayId, assignmentInDay.id)} variant="ghost" icon={<Minus size={13} />}
                 label={<><span className="hidden sm:inline">{t('inspector.removeFromDay')}</span><span className="sm:hidden">Remove</span></>} />
-            ) : (
-              <ActionButton onClick={() => onAssignToDay(place.id)} variant="primary" icon={<Plus size={13} />} label={t('inspector.addToDay')} />
-            )
           )}
           {googleDetails?.google_maps_url && (
             <ActionButton onClick={() => window.open(googleDetails.google_maps_url, '_blank')} variant="ghost" icon={<Navigation size={13} />}
