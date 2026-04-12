@@ -53,6 +53,15 @@ function hasTag(place: Place, name: string): boolean {
   return (place.tags || []).some(tag => tag.name.toLowerCase() === name.toLowerCase())
 }
 
+function isMustGo(place: Place): boolean {
+  return Boolean(place.must_go)
+}
+
+function hasPriority(place: Place, name: string): boolean {
+  if (name.toLowerCase() === 'must do') return isMustGo(place) || hasTag(place, name)
+  return hasTag(place, name)
+}
+
 function getPlaceTags(place: Place): Tag[] {
   return place.tags || []
 }
@@ -166,8 +175,8 @@ export default function FinalizationPanel({
   }), [dayStats, unplanned])
   const missingCoords = places.filter(place => place.lat == null || place.lng == null)
   const missingNotes = places.filter(place => !place.notes || !place.notes.trim())
-  const noPriority = places.filter(place => !PRIORITY_TAGS.some(tag => hasTag(place, tag.name)))
-  const unplannedMustGo = places.filter(place => place.must_go && !assignedPlaceIds.has(place.id))
+  const noPriority = places.filter(place => !PRIORITY_TAGS.some(tag => hasPriority(place, tag.name)))
+  const unplannedMustGo = places.filter(place => isMustGo(place) && !assignedPlaceIds.has(place.id))
   const ambitiousDays = dayStats.filter(day => day.status === 'ambitious')
 
   const checklist = [
@@ -218,11 +227,19 @@ export default function FinalizationPanel({
     setTaggingPlaceId(place.id)
     try {
       const tag = await ensureTag(tagName, color)
-      const currentIds = getPlaceTags(place).map(t => t.id)
-      const nextIds = currentIds.includes(tag.id)
+      const placeTags = getPlaceTags(place)
+      const currentIds = placeTags.map(t => t.id)
+      const currentPriorityIds = placeTags
+        .filter(t => PRIORITY_TAGS.some(priority => priority.name.toLowerCase() === t.name.toLowerCase()))
+        .map(t => t.id)
+      const isActive = hasPriority(place, tagName)
+      const nextIds = isActive
         ? currentIds.filter(id => id !== tag.id)
-        : [...currentIds.filter(id => !PRIORITY_TAGS.some(priority => tags.find(t => t.id === id)?.name.toLowerCase() === priority.name.toLowerCase())), tag.id]
-      await onUpdatePlace(place.id, { tags: nextIds })
+        : [...currentIds.filter(id => !currentPriorityIds.includes(id)), tag.id]
+      const nextData: Partial<Place> & { tags: number[] } = { tags: nextIds }
+      if (tagName.toLowerCase() === 'must do') nextData.must_go = isActive ? 0 : 1
+      else if (isMustGo(place)) nextData.must_go = 0
+      await onUpdatePlace(place.id, nextData)
     } finally {
       setTaggingPlaceId(null)
     }
@@ -232,8 +249,8 @@ export default function FinalizationPanel({
     .sort((a, b) => {
       const aAssigned = assignedPlaceIds.has(a.id) ? 1 : 0
       const bAssigned = assignedPlaceIds.has(b.id) ? 1 : 0
-      const aMustGo = a.must_go ? 1 : 0
-      const bMustGo = b.must_go ? 1 : 0
+      const aMustGo = isMustGo(a) ? 1 : 0
+      const bMustGo = isMustGo(b) ? 1 : 0
       return bMustGo - aMustGo || aAssigned - bAssigned || a.name.localeCompare(b.name)
     })
     .slice(0, 18)
@@ -383,7 +400,7 @@ export default function FinalizationPanel({
                   <PlaceAvatar place={place} category={place.category || undefined} size={28} />
                   <div>
                     <div style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 650, display: 'flex', alignItems: 'center', gap: 5 }}>
-                      {place.must_go && <Star size={12} fill="#facc15" color="#ca8a04" />}
+                      {isMustGo(place) && <Star size={12} fill="#facc15" color="#ca8a04" />}
                       {place.name}
                     </div>
                     <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>{assignedPlaceIds.has(place.id) ? 'Already planned' : 'Unplanned'}</div>
@@ -391,7 +408,7 @@ export default function FinalizationPanel({
                 </button>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {PRIORITY_TAGS.map(tag => {
-                    const active = hasTag(place, tag.name)
+                    const active = hasPriority(place, tag.name)
                     return (
                       <button
                         key={tag.name}

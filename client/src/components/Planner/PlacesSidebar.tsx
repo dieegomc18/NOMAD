@@ -121,7 +121,7 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
 
   const filtered = useMemo(() => places.filter(p => {
     if (filter === 'unplanned' && plannedIds.has(p.id)) return false
-    if (filter === 'must_go' && !p.must_go) return false
+    if (filter === 'must_go' && !Boolean(p.must_go)) return false
     if (categoryFilters.size > 0 && !categoryFilters.has(String(p.category_id))) return false
     if (search && !p.name.toLowerCase().includes(search.toLowerCase()) &&
         !(p.address || '').toLowerCase().includes(search.toLowerCase())) return false
@@ -135,7 +135,7 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
     e?.stopPropagation()
     if (!onUpdatePlace) return
     try {
-      await onUpdatePlace(place.id, { must_go: place.must_go ? 0 : 1 })
+      await onUpdatePlace(place.id, { must_go: Boolean(place.must_go) ? 0 : 1 })
     } catch (err: any) {
       toast.error(err?.message || 'Could not update must-go flag')
     }
@@ -355,7 +355,7 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
                     <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.2 }}>
                       {place.name}
                     </span>
-                    {place.must_go && (
+                    {Boolean(place.must_go) && (
                       <Star size={11} strokeWidth={2.2} fill="#facc15" color="#ca8a04" style={{ flexShrink: 0 }} />
                     )}
                   </div>
@@ -371,23 +371,23 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
                   {canEditPlaces && onUpdatePlace && (
                     <button
                       onClick={e => toggleMustGo(place, e)}
-                      title={place.must_go ? 'Remove must-go flag' : 'Mark as must-go'}
+                      title={Boolean(place.must_go) ? 'Remove must-go flag' : 'Mark as must-go'}
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         width: 20, height: 20, borderRadius: 6,
-                        background: place.must_go ? 'rgba(250,204,21,0.22)' : 'var(--bg-hover)',
+                        background: Boolean(place.must_go) ? 'rgba(250,204,21,0.22)' : 'var(--bg-hover)',
                         border: 'none', cursor: 'pointer',
-                        color: place.must_go ? '#ca8a04' : 'var(--text-faint)',
+                        color: Boolean(place.must_go) ? '#ca8a04' : 'var(--text-faint)',
                         padding: 0, marginRight: selectedDayId && !inDay ? 4 : 0,
                         transition: 'background 0.15s, color 0.15s',
                       }}
                     >
-                      <Star size={12} strokeWidth={2.2} fill={place.must_go ? '#facc15' : 'none'} />
+                      <Star size={12} strokeWidth={2.2} fill={Boolean(place.must_go) ? '#facc15' : 'none'} />
                     </button>
                   )}
                   {!inDay && selectedDayId && (
                     <button
-                      onClick={e => { e.stopPropagation(); onAssignToDay(place.id) }}
+                      onClick={e => { e.stopPropagation(); if (selectedDayId) onAssignToDay(place.id, selectedDayId) }}
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         width: 20, height: 20, borderRadius: 6,
