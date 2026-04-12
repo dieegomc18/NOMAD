@@ -9,7 +9,7 @@ export function getAssignmentWithPlace(assignmentId: number | bigint) {
       COALESCE(da.assignment_time, p.place_time) as place_time,
       COALESCE(da.assignment_end_time, p.end_time) as end_time,
       p.duration_minutes, p.notes as place_notes,
-      p.image_url, p.transport_mode, p.google_place_id, p.website, p.phone,
+      p.image_url, p.transport_mode, p.google_place_id, p.website, p.phone, p.must_go,
       c.name as category_name, c.color as category_color, c.icon as category_icon
     FROM day_assignments da
     JOIN places p ON da.place_id = p.id
@@ -61,6 +61,7 @@ export function getAssignmentWithPlace(assignmentId: number | bigint) {
       google_place_id: a.google_place_id,
       website: a.website,
       phone: a.phone,
+      must_go: a.must_go,
       category: a.category_id ? {
         id: a.category_id,
         name: a.category_name,
@@ -79,7 +80,7 @@ export function listDayAssignments(dayId: string | number) {
       COALESCE(da.assignment_time, p.place_time) as place_time,
       COALESCE(da.assignment_end_time, p.end_time) as end_time,
       p.duration_minutes, p.notes as place_notes,
-      p.image_url, p.transport_mode, p.google_place_id, p.website, p.phone,
+      p.image_url, p.transport_mode, p.google_place_id, p.website, p.phone, p.must_go,
       c.name as category_name, c.color as category_color, c.icon as category_icon
     FROM day_assignments da
     JOIN places p ON da.place_id = p.id

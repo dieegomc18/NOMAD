@@ -145,6 +145,7 @@ export default function PlaceInspector({
   const nameInputRef = useRef(null)
   const fileInputRef = useRef(null)
   const googleDetails = usePlaceDetails(place?.google_place_id, place?.osm_id, language)
+  const mustGo = !!place?.must_go
 
   const startNameEdit = () => {
     if (!onUpdatePlace) return
@@ -219,6 +220,10 @@ export default function PlaceInspector({
   const assignToSpecificDay = (dayId: number) => {
     onAssignToDay(place.id, dayId)
     setDayMenuOpen(false)
+  }
+
+  const toggleMustGo = () => {
+    onUpdatePlace?.(place.id, { must_go: mustGo ? 0 : 1 })
   }
 
   return (
@@ -325,6 +330,23 @@ export default function PlaceInspector({
                   </span>
                 )
               })()}
+              <button
+                type="button"
+                onClick={toggleMustGo}
+                title={mustGo ? 'Remove must-go flag' : 'Mark as must-go'}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  fontSize: 11, fontWeight: 600,
+                  color: mustGo ? '#854d0e' : 'var(--text-faint)',
+                  background: mustGo ? 'rgba(250,204,21,0.22)' : 'var(--bg-hover)',
+                  border: `1px solid ${mustGo ? 'rgba(234,179,8,0.45)' : 'var(--border-faint)'}`,
+                  padding: '2px 8px', borderRadius: 99,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                <Star size={10} fill={mustGo ? '#facc15' : 'none'} />
+                <span className="hidden sm:inline">Must go</span>
+              </button>
             </div>
             {place.address && (
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4, marginTop: 6 }}>

@@ -101,6 +101,7 @@ function createTables(db: Database.Database): void {
       google_place_id TEXT,
       website TEXT,
       phone TEXT,
+      must_go INTEGER DEFAULT 0,
       transport_mode TEXT DEFAULT 'walking',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP

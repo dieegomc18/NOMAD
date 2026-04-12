@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Compass, Copy, Crosshair, ExternalLink, Flag, MapPin, Navigation, Sparkles, Tag as TagIcon } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Compass, Copy, Crosshair, ExternalLink, Flag, MapPin, Navigation, Sparkles, Star, Tag as TagIcon } from 'lucide-react'
 import PlaceAvatar from '../shared/PlaceAvatar'
 import type { Assignment, AssignmentsMap, Day, Place, Tag } from '../../types'
 
@@ -167,6 +167,7 @@ export default function FinalizationPanel({
   const missingCoords = places.filter(place => place.lat == null || place.lng == null)
   const missingNotes = places.filter(place => !place.notes || !place.notes.trim())
   const noPriority = places.filter(place => !PRIORITY_TAGS.some(tag => hasTag(place, tag.name)))
+  const unplannedMustGo = places.filter(place => place.must_go && !assignedPlaceIds.has(place.id))
   const ambitiousDays = dayStats.filter(day => day.status === 'ambitious')
 
   const checklist = [
@@ -174,6 +175,7 @@ export default function FinalizationPanel({
     { label: 'All saved places have map coordinates', done: missingCoords.length === 0, detail: missingCoords.length ? `${missingCoords.length} missing` : 'Clean' },
     { label: 'Every day has at least one planned stop', done: dayStats.every(day => day.assignments.length > 0), detail: `${dayStats.filter(day => day.assignments.length === 0).length} empty days` },
     { label: 'No overloaded route days', done: ambitiousDays.length === 0, detail: ambitiousDays.length ? `${ambitiousDays.length} ambitious days` : 'Looks balanced' },
+    { label: 'Must-go places are scheduled', done: unplannedMustGo.length === 0, detail: unplannedMustGo.length ? `${unplannedMustGo.length} still unplanned` : 'All placed' },
     { label: 'Chain locations reviewed', done: chainPlaces.length === 0, detail: chainPlaces.length ? `${chainPlaces.length} decide-later places` : 'No reminders' },
     { label: 'Priority tags assigned', done: noPriority.length < places.length * 0.5, detail: `${places.length - noPriority.length}/${places.length} tagged` },
   ]
@@ -230,7 +232,9 @@ export default function FinalizationPanel({
     .sort((a, b) => {
       const aAssigned = assignedPlaceIds.has(a.id) ? 1 : 0
       const bAssigned = assignedPlaceIds.has(b.id) ? 1 : 0
-      return aAssigned - bAssigned || a.name.localeCompare(b.name)
+      const aMustGo = a.must_go ? 1 : 0
+      const bMustGo = b.must_go ? 1 : 0
+      return bMustGo - aMustGo || aAssigned - bAssigned || a.name.localeCompare(b.name)
     })
     .slice(0, 18)
 
@@ -378,7 +382,10 @@ export default function FinalizationPanel({
                 <button onClick={() => onPlaceClick(place.id)} style={{ border: 'none', background: 'transparent', display: 'flex', alignItems: 'center', gap: 9, padding: 0, cursor: 'pointer', textAlign: 'left', color: 'inherit' }}>
                   <PlaceAvatar place={place} category={place.category || undefined} size={28} />
                   <div>
-                    <div style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 650 }}>{place.name}</div>
+                    <div style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 650, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      {place.must_go && <Star size={12} fill="#facc15" color="#ca8a04" />}
+                      {place.name}
+                    </div>
                     <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>{assignedPlaceIds.has(place.id) ? 'Already planned' : 'Unplanned'}</div>
                   </div>
                 </button>

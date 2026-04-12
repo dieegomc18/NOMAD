@@ -68,6 +68,7 @@ export interface Place {
   osm_id?: string | null;
   website?: string | null;
   phone?: string | null;
+  must_go?: number | boolean;
   transport_mode?: string;
   created_at?: string;
   updated_at?: string;
@@ -291,6 +292,7 @@ export interface AssignmentRow extends DayAssignment {
   google_place_id: string | null;
   website: string | null;
   phone: string | null;
+  must_go?: number | boolean;
   category_name: string | null;
   category_color: string | null;
   category_icon: string | null;

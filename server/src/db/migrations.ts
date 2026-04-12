@@ -864,6 +864,11 @@ function runMigrations(db: Database.Database): void {
         for (const d of matchingDays) ins.run(r.id, d.id, r.day_plan_position);
       }
     },
+    // Migration 76: Must-go flag for trip place prioritization
+    () => {
+      try { db.exec('ALTER TABLE places ADD COLUMN must_go INTEGER DEFAULT 0'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      db.exec('CREATE INDEX IF NOT EXISTS idx_places_must_go ON places(trip_id, must_go)');
+    },
   ];
 
   if (currentVersion < migrations.length) {

@@ -53,6 +53,7 @@ export interface Place {
   google_place_id: string | null
   osm_id: string | null
   route_geometry: string | null
+  must_go?: number | boolean
   place_time: string | null
   end_time: string | null
   created_at: string

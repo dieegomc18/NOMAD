@@ -2,7 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom'
 import { useState, useRef, useMemo, useCallback } from 'react'
 import DOM from 'react-dom'
-import { Search, Plus, X, CalendarDays, Pencil, Trash2, ExternalLink, Navigation, Upload, ChevronDown, Check, MapPin, Eye } from 'lucide-react'
+import { Search, Plus, X, CalendarDays, Pencil, Trash2, ExternalLink, Navigation, Upload, ChevronDown, Check, MapPin, Eye, Star } from 'lucide-react'
 import PlaceAvatar from '../shared/PlaceAvatar'
 import { getCategoryIcon } from '../shared/categoryIcons'
 import { useTranslation } from '../../i18n'
@@ -26,6 +26,7 @@ interface PlacesSidebarProps {
   onAssignToDay: (placeId: number, dayId: number) => void
   onEditPlace: (place: Place) => void
   onDeletePlace: (placeId: number) => void
+  onUpdatePlace?: (placeId: number, data: Partial<Place>) => Promise<unknown> | unknown
   days: Day[]
   isMobile: boolean
   onCategoryFilterChange?: (categoryId: string) => void
@@ -34,7 +35,7 @@ interface PlacesSidebarProps {
 
 const PlacesSidebar = React.memo(function PlacesSidebar({
   tripId, places, categories, assignments, selectedDayId, selectedPlaceId,
-  onPlaceClick, onAddPlace, onAssignToDay, onEditPlace, onDeletePlace, days, isMobile, onCategoryFilterChange, pushUndo,
+  onPlaceClick, onAddPlace, onAssignToDay, onEditPlace, onDeletePlace, onUpdatePlace, days, isMobile, onCategoryFilterChange, pushUndo,
 }: PlacesSidebarProps) {
   const { t } = useTranslation()
   const toast = useToast()
@@ -120,6 +121,7 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
 
   const filtered = useMemo(() => places.filter(p => {
     if (filter === 'unplanned' && plannedIds.has(p.id)) return false
+    if (filter === 'must_go' && !p.must_go) return false
     if (categoryFilters.size > 0 && !categoryFilters.has(String(p.category_id))) return false
     if (search && !p.name.toLowerCase().includes(search.toLowerCase()) &&
         !(p.address || '').toLowerCase().includes(search.toLowerCase())) return false
@@ -128,6 +130,16 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
 
   const isAssignedToSelectedDay = (placeId) =>
     selectedDayId && (assignments[String(selectedDayId)] || []).some(a => a.place?.id === placeId)
+
+  const toggleMustGo = async (place: Place, e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    if (!onUpdatePlace) return
+    try {
+      await onUpdatePlace(place.id, { must_go: place.must_go ? 0 : 1 })
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not update must-go flag')
+    }
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif" }}>
@@ -175,8 +187,8 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
         </>}
 
         {/* Filter-Tabs */}
-        <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-          {[{ id: 'all', label: t('places.all') }, { id: 'unplanned', label: t('places.unplanned') }].map(f => (
+        <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
+          {[{ id: 'all', label: t('places.all') }, { id: 'unplanned', label: t('places.unplanned') }, { id: 'must_go', label: 'Must go' }].map(f => (
             <button key={f.id} onClick={() => setFilter(f.id)} style={{
               padding: '4px 10px', borderRadius: 20, border: 'none', cursor: 'pointer',
               fontSize: 11, fontWeight: 500, fontFamily: 'inherit',
@@ -343,6 +355,9 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
                     <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.2 }}>
                       {place.name}
                     </span>
+                    {place.must_go && (
+                      <Star size={11} strokeWidth={2.2} fill="#facc15" color="#ca8a04" style={{ flexShrink: 0 }} />
+                    )}
                   </div>
                   {(place.description || place.address || cat?.name) && (
                     <div style={{ marginTop: 2 }}>
@@ -353,6 +368,23 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
                   )}
                 </div>
                 <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                  {canEditPlaces && onUpdatePlace && (
+                    <button
+                      onClick={e => toggleMustGo(place, e)}
+                      title={place.must_go ? 'Remove must-go flag' : 'Mark as must-go'}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        width: 20, height: 20, borderRadius: 6,
+                        background: place.must_go ? 'rgba(250,204,21,0.22)' : 'var(--bg-hover)',
+                        border: 'none', cursor: 'pointer',
+                        color: place.must_go ? '#ca8a04' : 'var(--text-faint)',
+                        padding: 0, marginRight: selectedDayId && !inDay ? 4 : 0,
+                        transition: 'background 0.15s, color 0.15s',
+                      }}
+                    >
+                      <Star size={12} strokeWidth={2.2} fill={place.must_go ? '#facc15' : 'none'} />
+                    </button>
+                  )}
                   {!inDay && selectedDayId && (
                     <button
                       onClick={e => { e.stopPropagation(); onAssignToDay(place.id) }}

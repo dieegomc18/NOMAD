@@ -135,9 +135,10 @@ function kmlIconHref(categoryName: unknown, categoryColor: unknown): string {
 }
 
 function exportCsv(places: any[]): string {
-  const headers = ['name', 'address', 'latitude', 'longitude', 'category', 'notes', 'google_place_id', 'google_maps_url', 'website', 'phone'];
+  const headers = ['name', 'must_go', 'address', 'latitude', 'longitude', 'category', 'notes', 'google_place_id', 'google_maps_url', 'website', 'phone'];
   const rows = places.map(place => [
     place.name,
+    place.must_go ? 'yes' : '',
     place.address,
     place.lat,
     place.lng,
@@ -185,6 +186,7 @@ function exportKml(trip: Trip, places: any[]): string {
     .map(([key, category]) => {
       const placemarks = category.places.map(place => {
       const description = [
+        place.must_go ? '<p><strong>Must go:</strong> yes</p>' : '',
         place.category_name ? `<p><strong>Category:</strong> ${escapeXml(place.category_name)}</p>` : '',
         place.address ? `<p><strong>Address:</strong> ${escapeXml(place.address)}</p>` : '',
         place.notes ? `<p>${escapeXml(place.notes)}</p>` : '',
@@ -236,6 +238,7 @@ function exportGeoJson(trip: Trip, places: any[]) {
           category: place.category_name,
           category_color: place.category_color,
           category_icon: place.category_icon,
+          must_go: !!place.must_go,
           notes: place.notes,
           google_place_id: place.google_place_id,
           google_maps_url: googleMapsUrl(place),
@@ -447,14 +450,14 @@ router.post('/:id/copy', authenticate, (req: Request, res: Response) => {
     const insertPlace = db.prepare(`
       INSERT INTO places (trip_id, name, description, lat, lng, address, category_id, price, currency,
         reservation_status, reservation_notes, reservation_datetime, place_time, end_time,
-        duration_minutes, notes, image_url, google_place_id, website, phone, transport_mode, osm_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        duration_minutes, notes, image_url, google_place_id, website, phone, must_go, transport_mode, osm_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const p of oldPlaces) {
       const r = insertPlace.run(newTripId, p.name, p.description, p.lat, p.lng, p.address, p.category_id,
         p.price, p.currency, p.reservation_status, p.reservation_notes, p.reservation_datetime,
         p.place_time, p.end_time, p.duration_minutes, p.notes, p.image_url, p.google_place_id,
-        p.website, p.phone, p.transport_mode, p.osm_id);
+        p.website, p.phone, p.must_go ? 1 : 0, p.transport_mode, p.osm_id);
       placeMap.set(p.id, r.lastInsertRowid);
     }
 

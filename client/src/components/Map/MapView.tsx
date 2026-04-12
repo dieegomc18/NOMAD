@@ -38,7 +38,7 @@ function escAttr(s) {
 const iconCache = new Map<string, L.DivIcon>()
 
 function createPlaceIcon(place, orderNumbers, isSelected) {
-  const cacheKey = `${place.id}:${isSelected}:${place.image_url || ''}:${place.category_color || ''}:${place.category_icon || ''}:${orderNumbers?.join(',') || ''}`
+  const cacheKey = `${place.id}:${isSelected}:${place.image_url || ''}:${place.category_color || ''}:${place.category_icon || ''}:${place.must_go ? 1 : 0}:${orderNumbers?.join(',') || ''}`
   const cached = iconCache.get(cacheKey)
   if (cached) return cached
   const size = isSelected ? 44 : 36
@@ -48,6 +48,17 @@ function createPlaceIcon(place, orderNumbers, isSelected) {
     ? '0 0 0 3px rgba(17,24,39,0.25), 0 4px 14px rgba(0,0,0,0.3)'
     : '0 2px 8px rgba(0,0,0,0.22)'
   const bgColor = place.category_color || '#6b7280'
+  const mustGoBadge = place.must_go ? `<span style="
+      position:absolute;top:-5px;right:-5px;
+      width:18px;height:18px;border-radius:50%;
+      background:#facc15;color:#111827;
+      border:2px solid white;
+      box-shadow:0 2px 8px rgba(0,0,0,0.25);
+      display:flex;align-items:center;justify-content:center;
+      font-size:11px;font-weight:900;
+      font-family:-apple-system,system-ui,sans-serif;line-height:1;
+      z-index:3;
+    ">★</span>` : ''
 
   // Number badges (bottom-right)
   let badgeHtml = ''
@@ -84,6 +95,7 @@ function createPlaceIcon(place, orderNumbers, isSelected) {
         ">
           <img src="${place.image_url}" width="${size}" height="${size}" style="display:block;border-radius:50%;object-fit:cover;" />
         </div>
+        ${mustGoBadge}
         ${badgeHtml}
       </div>`,
       iconSize: [size, size],
@@ -106,6 +118,7 @@ function createPlaceIcon(place, orderNumbers, isSelected) {
       will-change:transform;contain:layout style;
     ">
       ${categoryIconSvg(place.category_icon, isSelected ? 18 : 15)}
+      ${mustGoBadge}
       ${badgeHtml}
     </div>`,
     iconSize: [size, size],
