@@ -451,6 +451,7 @@ export const MapView = memo(function MapView({
   const effectiveAttribution = mapType === 'satellite'
     ? '&copy; Esri'
     : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  const mapControlLeft = Math.max(12, leftWidth + 16)
 
   const clusterIconCreateFunction = useCallback((cluster) => {
     const count = cluster.getChildCount()
@@ -514,7 +515,18 @@ export const MapView = memo(function MapView({
 
   return (
     <div className="relative w-full h-full" style={{ minHeight: 320 }}>
-      <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 1000 }}>
+      <div
+        style={{
+          position: 'absolute',
+          top: 12,
+          left: mapControlLeft,
+          zIndex: 1000,
+          display: 'flex',
+          gap: 8,
+          flexWrap: 'wrap',
+          maxWidth: 'calc(100% - 24px)',
+        }}
+      >
         <button
           type="button"
           onClick={() => setMapType(current => current === 'standard' ? 'satellite' : 'standard')}
@@ -536,9 +548,7 @@ export const MapView = memo(function MapView({
         >
           {mapType === 'standard' ? 'Satellite' : 'Standard'}
         </button>
-      </div>
 
-      <div style={{ position: 'absolute', top: 56, left: 12, zIndex: 1000 }}>
         <button
           type="button"
           onClick={() => setMapReloadKey(key => key + 1)}
@@ -559,30 +569,6 @@ export const MapView = memo(function MapView({
           title="Reload the map if Safari shows a blank area"
         >
           Reload map
-        </button>
-      </div>
-
-      <div style={{ position: 'absolute', top: 98, left: 12, zIndex: 1000 }}>
-        <button
-          type="button"
-          onClick={() => { setBasicMode(current => !current); setMapReloadKey(key => key + 1) }}
-          style={{
-            minWidth: 92,
-            height: 34,
-            padding: '0 12px',
-            borderRadius: 999,
-            border: '1px solid rgba(15, 23, 42, 0.08)',
-            background: basicMode ? '#111827' : 'rgba(255,255,255,0.96)',
-            color: basicMode ? 'white' : '#0f172a',
-            fontSize: 12,
-            fontWeight: 650,
-            cursor: 'pointer',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
-            backdropFilter: 'blur(8px)',
-          }}
-          title="Use a simpler map layer and markers for mobile Safari"
-        >
-          {basicMode ? 'Normal map' : 'Basic map'}
         </button>
       </div>
 
