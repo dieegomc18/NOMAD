@@ -429,9 +429,14 @@ export const MapView = memo(function MapView({
   rightWidth = 0,
   hasInspector = false,
   hasDayDetail = false,
+  mapType = 'standard',
+  mapReloadKey = 0,
 }) {
-  const [mapReloadKey, setMapReloadKey] = useState(0)
   const [basicMode, setBasicMode] = useState(false)
+
+  useEffect(() => {
+    setBasicMode(false)
+  }, [mapReloadKey])
 
   // Dynamic padding: account for sidebars + bottom inspector + day detail panel
   const paddingOpts = useMemo(() => {
@@ -444,14 +449,12 @@ export const MapView = memo(function MapView({
     return { paddingTopLeft: [left, top], paddingBottomRight: [right, bottom] }
   }, [leftWidth, rightWidth, hasInspector, hasDayDetail])
 
-  const [mapType, setMapType] = useState<'standard' | 'satellite'>('standard')
   const satelliteTileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
   const fallbackTileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
   const effectiveTileUrl = basicMode ? fallbackTileUrl : mapType === 'satellite' ? satelliteTileUrl : tileUrl
   const effectiveAttribution = mapType === 'satellite'
     ? '&copy; Esri'
     : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-  const mapControlLeft = Math.max(12, leftWidth + 16)
 
   const clusterIconCreateFunction = useCallback((cluster) => {
     const count = cluster.getChildCount()
@@ -515,63 +518,6 @@ export const MapView = memo(function MapView({
 
   return (
     <div className="relative w-full h-full" style={{ minHeight: 320 }}>
-      <div
-        style={{
-          position: 'absolute',
-          top: 12,
-          left: mapControlLeft,
-          zIndex: 1000,
-          display: 'flex',
-          gap: 8,
-          flexWrap: 'wrap',
-          maxWidth: 'calc(100% - 24px)',
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setMapType(current => current === 'standard' ? 'satellite' : 'standard')}
-          style={{
-            minWidth: 92,
-            height: 36,
-            padding: '0 12px',
-            borderRadius: 999,
-            border: '1px solid rgba(15, 23, 42, 0.08)',
-            background: 'rgba(255,255,255,0.96)',
-            color: '#0f172a',
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: 'pointer',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
-            backdropFilter: 'blur(8px)',
-          }}
-          title={mapType === 'standard' ? 'Switch to satellite view' : 'Switch to standard view'}
-        >
-          {mapType === 'standard' ? 'Satellite' : 'Standard'}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setMapReloadKey(key => key + 1)}
-          style={{
-            minWidth: 92,
-            height: 34,
-            padding: '0 12px',
-            borderRadius: 999,
-            border: '1px solid rgba(15, 23, 42, 0.08)',
-            background: 'rgba(255,255,255,0.96)',
-            color: '#0f172a',
-            fontSize: 12,
-            fontWeight: 650,
-            cursor: 'pointer',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
-            backdropFilter: 'blur(8px)',
-          }}
-          title="Reload the map if Safari shows a blank area"
-        >
-          Reload map
-        </button>
-      </div>
-
       <MapContainer
         key={`${effectiveTileUrl}-${basicMode}-${mapReloadKey}`}
         id="trek-map"
@@ -595,7 +541,6 @@ export const MapView = memo(function MapView({
             tileerror: () => {
               if (!basicMode) {
                 setBasicMode(true)
-                setMapReloadKey(key => key + 1)
               }
             },
           }}

@@ -25,7 +25,7 @@ import CollabPanel from '../components/Collab/CollabPanel'
 import CollabNotes from '../components/Collab/CollabNotes'
 import Navbar from '../components/Layout/Navbar'
 import { useToast } from '../components/shared/Toast'
-import { Map, X, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Ticket, PackageCheck, Wallet, FolderOpen, Camera, Users, Download, ChevronDown, ClipboardCheck, CalendarCheck2 } from 'lucide-react'
+import { Map, X, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Ticket, PackageCheck, Wallet, FolderOpen, Camera, Users, Download, ClipboardCheck, CalendarCheck2, SlidersHorizontal, RefreshCw, Layers } from 'lucide-react'
 import { useTranslation } from '../i18n'
 import { addonsApi, accommodationsApi, authApi, tripsApi, assignmentsApi, mapsApi } from '../api/client'
 import ConfirmDialog from '../components/shared/ConfirmDialog'
@@ -106,7 +106,8 @@ export default function TripPlannerPage(): React.ReactElement | null {
   const [tripAccommodations, setTripAccommodations] = useState<Accommodation[]>([])
   const [allowedFileTypes, setAllowedFileTypes] = useState<string | null>(null)
   const [tripMembers, setTripMembers] = useState<TripMember[]>([])
-  const [exportMenuOpen, setExportMenuOpen] = useState(false)
+  const [mapType, setMapType] = useState<'standard' | 'satellite'>('standard')
+  const [mapReloadKey, setMapReloadKey] = useState<number>(0)
 
   const loadAccommodations = useCallback(() => {
     if (tripId) {
@@ -132,6 +133,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
     { id: 'plan', label: t('trip.tabs.plan'), icon: Map },
     { id: 'today', label: 'Today', icon: CalendarCheck2 },
     { id: 'finalize', label: 'Finalize', icon: ClipboardCheck },
+    { id: 'tools', label: 'Tools', icon: SlidersHorizontal },
     { id: 'buchungen', label: t('trip.tabs.reservations'), shortLabel: t('trip.tabs.reservationsShort'), icon: Ticket },
     ...(enabledAddons.collab ? [{ id: 'notes', label: t('trip.tabs.notes'), icon: Users }] : []),
     ...(enabledAddons.packing ? [{ id: 'listen', label: t('trip.tabs.lists'), shortLabel: t('trip.tabs.listsShort'), icon: PackageCheck }] : []),
@@ -156,14 +158,12 @@ export default function TripPlannerPage(): React.ReactElement | null {
 
   const handleTabChange = (tabId: string): void => {
     setActiveTab(tabId)
-    setExportMenuOpen(false)
     sessionStorage.setItem(`trip-tab-${tripId}`, tabId)
     if (tabId === 'finanzplan') tripActions.loadBudgetItems?.(tripId)
     if (tabId === 'dateien' && (!files || files.length === 0)) tripActions.loadFiles?.(tripId)
   }
 
   const handleExport = async (format: 'csv' | 'kml' | 'geojson'): Promise<void> => {
-    setExportMenuOpen(false)
     if (!tripId) return
     try {
       await tripsApi.exportPlaces(tripId, format)
@@ -171,6 +171,12 @@ export default function TripPlannerPage(): React.ReactElement | null {
       window.location.href = `/api/trips/${tripId}/export?format=${format}`
       toast.error(err instanceof Error ? err.message : 'Export failed; trying direct download')
     }
+  }
+
+  const handleReloadMap = (): void => {
+    setMapReloadKey(key => key + 1)
+    setMapMountKey(key => key + 1)
+    toast.info('Map reloaded')
   }
   const { leftWidth, rightWidth, leftCollapsed, rightCollapsed, setLeftCollapsed, setRightCollapsed, startResizeLeft, startResizeRight } = useResizablePanels()
   const { selectedPlaceId, selectedAssignmentId, setSelectedPlaceId, selectAssignment } = usePlaceSelection()
@@ -606,87 +612,6 @@ export default function TripPlannerPage(): React.ReactElement | null {
             </button>
           )
         })}
-        <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}>
-          <button
-            onClick={() => handleExport('kml')}
-            title="Export Google My Maps / Earth KML"
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '6px 12px', borderRadius: 18,
-              border: '1px solid var(--border-faint)',
-              background: 'var(--bg-secondary)',
-              color: 'var(--text-primary)',
-              cursor: 'pointer',
-              fontSize: 12,
-              fontWeight: 600,
-              fontFamily: 'inherit',
-              boxShadow: exportMenuOpen ? '0 8px 22px rgba(0,0,0,0.12)' : 'none',
-            }}
-          >
-            <Download size={14} />
-            <span className="hidden sm:inline">Export</span>
-          </button>
-          <button
-            onClick={() => setExportMenuOpen(v => !v)}
-            title="Choose export format"
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 32, height: 32, marginLeft: 4,
-              borderRadius: 18,
-              border: '1px solid var(--border-faint)',
-              background: exportMenuOpen ? 'var(--bg-elevated)' : 'var(--bg-secondary)',
-              color: 'var(--text-primary)',
-              cursor: 'pointer',
-              boxShadow: exportMenuOpen ? '0 8px 22px rgba(0,0,0,0.12)' : 'none',
-            }}
-          >
-            <ChevronDown size={13} />
-          </button>
-          {exportMenuOpen && (
-            <div
-              style={{
-                position: 'absolute',
-                right: 0,
-                top: 38,
-                minWidth: 220,
-                borderRadius: 16,
-                border: '1px solid var(--border-faint)',
-                background: 'var(--bg-elevated)',
-                boxShadow: '0 18px 50px rgba(0,0,0,0.18)',
-                padding: 6,
-                zIndex: 80,
-              }}
-            >
-              {[
-                { id: 'kml' as const, label: 'Google My Maps / Earth (.kml)', hint: 'Best for a custom public map' },
-                { id: 'csv' as const, label: 'Spreadsheet (.csv)', hint: 'Includes notes and Google links' },
-                { id: 'geojson' as const, label: 'GeoJSON (.geojson)', hint: 'For web maps and developers' },
-              ].map(item => (
-                <button
-                  key={item.id}
-                  onClick={() => handleExport(item.id)}
-                  style={{
-                    width: '100%',
-                    display: 'block',
-                    textAlign: 'left',
-                    border: 'none',
-                    borderRadius: 12,
-                    background: 'transparent',
-                    color: 'var(--text-primary)',
-                    padding: '9px 10px',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-secondary)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-                >
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{item.label}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{item.hint}</div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Offset by navbar + tab bar (44px) */}
@@ -713,6 +638,8 @@ export default function TripPlannerPage(): React.ReactElement | null {
               rightWidth={rightCollapsed ? 0 : rightWidth}
               hasInspector={!!selectedPlace}
               hasDayDetail={!!showDayDetail && !selectedPlace}
+              mapType={mapType}
+              mapReloadKey={mapReloadKey}
             />
 
 
@@ -1023,6 +950,110 @@ export default function TripPlannerPage(): React.ReactElement | null {
               handleTabChange('plan')
             }}
           />
+        )}
+
+        {activeTab === 'tools' && (
+          <div style={{ height: '100%', overflowY: 'auto', overscrollBehavior: 'contain', padding: 16 }}>
+            <div style={{ maxWidth: 980, margin: '0 auto', display: 'grid', gap: 16 }}>
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-faint)', borderRadius: 20, padding: 18 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                  <Layers size={18} />
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: 18, color: 'var(--text-primary)' }}>Map settings</h2>
+                    <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--text-muted)' }}>Controls live here so the map stays clear for planning.</p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                  {[
+                    { id: 'standard' as const, label: 'Standard map', hint: 'Clean street map for planning routes.' },
+                    { id: 'satellite' as const, label: 'Satellite map', hint: 'Aerial view for parks, piers, and landmarks.' },
+                  ].map(option => {
+                    const selected = mapType === option.id
+                    return (
+                      <button
+                        key={option.id}
+                        onClick={() => setMapType(option.id)}
+                        style={{
+                          flex: '1 1 220px',
+                          minHeight: 82,
+                          textAlign: 'left',
+                          border: selected ? '1px solid var(--accent)' : '1px solid var(--border-faint)',
+                          borderRadius: 16,
+                          background: selected ? 'color-mix(in srgb, var(--accent) 12%, var(--bg-secondary))' : 'var(--bg-secondary)',
+                          color: 'var(--text-primary)',
+                          padding: 14,
+                          cursor: 'pointer',
+                          fontFamily: 'inherit',
+                        }}
+                      >
+                        <div style={{ fontSize: 14, fontWeight: 700 }}>{option.label}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{option.hint}</div>
+                      </button>
+                    )
+                  })}
+                  <button
+                    onClick={handleReloadMap}
+                    style={{
+                      flex: '1 1 220px',
+                      minHeight: 82,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      border: '1px solid var(--border-faint)',
+                      borderRadius: 16,
+                      background: 'var(--bg-secondary)',
+                      color: 'var(--text-primary)',
+                      padding: 14,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <RefreshCw size={18} />
+                    <span>
+                      <span style={{ display: 'block', fontSize: 14, fontWeight: 700 }}>Reload map</span>
+                      <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Use if Safari/iPhone tiles get stuck.</span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-faint)', borderRadius: 20, padding: 18 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                  <Download size={18} />
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: 18, color: 'var(--text-primary)' }}>Export trip places</h2>
+                    <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--text-muted)' }}>Download the map data without keeping an export button on the planner.</p>
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+                  {[
+                    { id: 'kml' as const, label: 'Google My Maps / Earth (.kml)', hint: 'Best for a custom public map.' },
+                    { id: 'csv' as const, label: 'Spreadsheet (.csv)', hint: 'Includes notes and Google links.' },
+                    { id: 'geojson' as const, label: 'GeoJSON (.geojson)', hint: 'For web maps and developers.' },
+                  ].map(item => (
+                    <button
+                      key={item.id}
+                      onClick={() => handleExport(item.id)}
+                      style={{
+                        textAlign: 'left',
+                        border: '1px solid var(--border-faint)',
+                        borderRadius: 16,
+                        background: 'var(--bg-secondary)',
+                        color: 'var(--text-primary)',
+                        padding: 14,
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                      }}
+                    >
+                      <div style={{ fontSize: 14, fontWeight: 700 }}>{item.label}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{item.hint}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {activeTab === 'buchungen' && (
