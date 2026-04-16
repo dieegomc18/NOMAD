@@ -12,6 +12,7 @@ import DayDetailPanel from '../components/Planner/DayDetailPanel'
 import PlaceFormModal from '../components/Planner/PlaceFormModal'
 import TodayPanel from '../components/Planner/TodayPanel'
 import FinalizationPanel from '../components/Planner/FinalizationPanel'
+import TripInboxPanel from '../components/Planner/TripInboxPanel'
 import TripFormModal from '../components/Trips/TripFormModal'
 import TripMembersModal from '../components/Trips/TripMembersModal'
 import { ReservationModal } from '../components/Planner/ReservationModal'
@@ -25,7 +26,7 @@ import CollabPanel from '../components/Collab/CollabPanel'
 import CollabNotes from '../components/Collab/CollabNotes'
 import Navbar from '../components/Layout/Navbar'
 import { useToast } from '../components/shared/Toast'
-import { Map, X, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Ticket, PackageCheck, Wallet, FolderOpen, Camera, Users, Download, ClipboardCheck, CalendarCheck2, SlidersHorizontal, RefreshCw, Layers } from 'lucide-react'
+import { Map, X, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Ticket, PackageCheck, Wallet, FolderOpen, Camera, Users, Download, ClipboardCheck, CalendarCheck2, SlidersHorizontal, RefreshCw, Layers, Inbox } from 'lucide-react'
 import { useTranslation } from '../i18n'
 import { addonsApi, accommodationsApi, authApi, tripsApi, assignmentsApi, mapsApi } from '../api/client'
 import ConfirmDialog from '../components/shared/ConfirmDialog'
@@ -131,6 +132,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
 
   const TRIP_TABS = [
     { id: 'plan', label: t('trip.tabs.plan'), icon: Map },
+    { id: 'inbox', label: 'Inbox', icon: Inbox },
     { id: 'today', label: 'Today', icon: CalendarCheck2 },
     { id: 'finalize', label: 'Finalize', icon: ClipboardCheck },
     { id: 'tools', label: 'Tools', icon: SlidersHorizontal },
@@ -183,7 +185,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
   const [showDayDetail, setShowDayDetail] = useState<Day | null>(null)
   const [showPlaceForm, setShowPlaceForm] = useState<boolean>(false)
   const [editingPlace, setEditingPlace] = useState<Place | null>(null)
-  const [prefillCoords, setPrefillCoords] = useState<{ lat: number; lng: number; name?: string; address?: string } | null>(null)
+  const [prefillCoords, setPrefillCoords] = useState<{ lat?: number; lng?: number; name?: string; address?: string } | null>(null)
   const [editingAssignmentId, setEditingAssignmentId] = useState<number | null>(null)
   const [showTripForm, setShowTripForm] = useState<boolean>(false)
   const [showMembersModal, setShowMembersModal] = useState<boolean>(false)
@@ -935,6 +937,19 @@ export default function TripPlannerPage(): React.ReactElement | null {
             onPlaceClick={(placeId) => {
               handlePlaceClick(placeId)
               handleTabChange('plan')
+            }}
+          />
+        )}
+
+        {activeTab === 'inbox' && (
+          <TripInboxPanel
+            tripId={tripId}
+            items={todoItems}
+            onCreatePlaceIdea={(name) => {
+              setEditingPlace(null)
+              setEditingAssignmentId(null)
+              setPrefillCoords({ name })
+              setShowPlaceForm(true)
             }}
           />
         )}

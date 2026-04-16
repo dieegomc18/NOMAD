@@ -44,7 +44,7 @@ interface PlaceFormModalProps {
   onClose: () => void
   onSave: (data: PlaceFormData, files?: File[]) => Promise<void> | void
   place: Place | null
-  prefillCoords?: { lat: number; lng: number; name?: string; address?: string } | null
+  prefillCoords?: { lat?: number; lng?: number; name?: string; address?: string } | null
   tripId: number
   categories: Category[]
   onCategoryCreated: (category: Category) => void
@@ -90,8 +90,8 @@ export default function PlaceFormModal({
     } else if (prefillCoords) {
       setForm({
         ...DEFAULT_FORM,
-        lat: String(prefillCoords.lat),
-        lng: String(prefillCoords.lng),
+        lat: prefillCoords.lat != null ? String(prefillCoords.lat) : '',
+        lng: prefillCoords.lng != null ? String(prefillCoords.lng) : '',
         name: prefillCoords.name || '',
         address: prefillCoords.address || '',
       })
